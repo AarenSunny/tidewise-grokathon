@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-import httpx
 
 from backend.adapters.base import PermanentFetchError, SourceAdapter
 from backend.adapters.coops import CoopsTideAdapter, TidePayload
@@ -15,9 +14,9 @@ from backend.adapters.erddap import ErddapChlAdapter, ChlPayload
 from backend.adapters.ndbc import NdbcAdapter, parse_ndbc_value
 from backend.cache.memory import MemoryTTLCache
 from backend.health import HealthMonitor
-from backend.models.common import SourceStatus
+from backend.models.common import Activity, SourceStatus
 from backend.models.spots import Spot
-from backend.models.common import Activity
+from backend.models.sources import SourceResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -65,18 +64,6 @@ async def test_coops_station_fallback(monkeypatch):
     adapter = CoopsTideAdapter(cache, health=health)
     calls: list[str] = []
 
-    async def fake_get(client, station, start, end):
-        calls.append(station)
-        if station == "9414131":
-            raise PermanentFetchError("no predictions")
-        return {
-            "predictions": [{"t": "2026-11-19 12:00", "v": "2.0", "type": "L"}],
-            "_station_id": station,
-            "_fallback_used": f"station:{station}",
-        }
-
-    # Permanent on primary should not fall through — PermanentFetchError breaks chain
-    # So simulate transient on primary, success on fallback
     async def fake_get2(client, station, start, end):
         calls.append(station)
         if station == "9414131":
@@ -118,7 +105,6 @@ def test_chl_stale_flag_old_observation():
     payload = adapter._validate(raw)
     assert isinstance(payload, ChlPayload)
     assert payload.chla_mg_m3 is not None
-    # Observation 2026-11-09 vs "today" 2026-11-19 → >10 days → stale
     assert payload.stale is True
     assert payload.observed_at is not None
 
@@ -207,29 +193,50 @@ async def test_observation_age_marks_stale():
 
 
 @pytest.mark.asyncio
-async def test_max_stale_age_returns_down(monkeypatch):
-    cache = MemoryTTLCache(default_max_stale_age=timedelta(seconds=1))
-    adapter = CoopsTideAdapter(cache)
-    adapter.max_stale_age = timedelta(seconds=0)
+async def test_max_stale_age_returns_down():
+    """review1-#4: expired TTL + max_stale_age=0 ⇒ down (no eternal stale).
+
+    Root cause of prior failure: the test seeded a *fresh* TTL hit with
+    data={'x':1}, so fetch took the cache_hit path and payload_model.model_validate
+    raised ValidationError instead of exercising get_stale/max_stale_age.
+    Fix: (1) base._rehydrate returns None on bad payload (cache miss),
+    (2) cache get_stale uses age >= limit so max_stale_age=0 never serves,
+    (3) this test expires TTL and uses a Fake adapter with valid-shaped data.
+    """
+
+    class Fake(SourceAdapter):
+        name = "fake_stale_cap"
+        max_stale_age = timedelta(seconds=0)
+        payload_model = TidePayload
+
+        async def _fetch_live(self, spot, start, end):
+            raise ConnectionError("down")
+
+        def _validate(self, raw):
+            raise PermanentFetchError("unused")
+
+    cache = MemoryTTLCache()
+    adapter = Fake(cache)
     spot = _spot()
     start = datetime(2026, 11, 19, tzinfo=timezone.utc)
-    # Seed cache with old entry
-    from backend.models.sources import SourceResult
-
+    payload = TidePayload(
+        station_id="x",
+        product="t",
+        points=[],
+        observed_at=datetime(2026, 11, 19, tzinfo=timezone.utc),
+    )
     old = SourceResult(
-        data={"x": 1},
+        data=payload,
         fetched_at=datetime(2026, 11, 1, tzinfo=timezone.utc),
         valid_until=datetime(2026, 11, 1, tzinfo=timezone.utc),
         status=SourceStatus.ok,
         source_name=adapter.name,
+        data_type="backend.adapters.coops.TidePayload",
+        observed_at=payload.observed_at,
     )
     key = adapter.cache_key(spot, start, start + timedelta(days=1))
-    await cache.set(key, old.model_dump(mode="json"), timedelta(hours=1))
-    # Force live fail
-    async def boom(*a, **k):
-        raise ConnectionError("down")
-
-    adapter._fetch_live = boom  # type: ignore
-    # Expire TTL so get() misses but get_stale might hit — max_stale_age=0 ⇒ None
+    # TTL already expired ⇒ get() misses; max_stale_age=0 ⇒ get_stale refuses
+    await cache.set(key, old.model_dump(mode="json"), timedelta(seconds=0))
     result = await adapter.fetch(spot, start, start + timedelta(days=1))
     assert result.status == SourceStatus.down
+    assert any("no_stale_cache" in n or "live_failed" in n for n in result.notes)

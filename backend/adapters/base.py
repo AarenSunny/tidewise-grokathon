@@ -8,6 +8,8 @@ Concrete adapters implement `_fetch_live` and `_validate`. The base `fetch` owns
   - observed_at freshness vs max_age — review1-#2
   - max_stale_age beyond which stale cache is refused — review1-#4
   - HealthMonitor reporting — review1-#9
+  - error redaction — review1-#13
+  - single-flight per cache key — review1-#14
 """
 
 from __future__ import annotations
@@ -16,21 +18,34 @@ import asyncio
 import importlib
 import logging
 import random
+import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional, Type
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from backend.cache.base import CacheBackend
 from backend.models.common import SourceStatus
 from backend.models.sources import SourceResult
 from backend.models.spots import Spot
+from backend.redact import redact, redact_error
 
 if TYPE_CHECKING:
     from backend.health import HealthMonitor
 
 logger = logging.getLogger(__name__)
+
+# Process-wide single-flight map (review1-#14)
+_INFLIGHT: dict[str, asyncio.Future[SourceResult]] = {}
+_INFLIGHT_GUARD: asyncio.Lock | None = None
+
+
+def _get_inflight_lock() -> asyncio.Lock:
+    global _INFLIGHT_GUARD
+    if _INFLIGHT_GUARD is None:
+        _INFLIGHT_GUARD = asyncio.Lock()
+    return _INFLIGHT_GUARD
 
 
 class PermanentFetchError(Exception):
@@ -39,6 +54,10 @@ class PermanentFetchError(Exception):
 
 class TransientFetchError(Exception):
     """Timeouts / 5xx / connect — may retry."""
+
+    def __init__(self, message: str, *, retry_after_s: Optional[float] = None) -> None:
+        super().__init__(message)
+        self.retry_after_s = retry_after_s
 
 
 class SourceAdapter(ABC):
@@ -49,15 +68,10 @@ class SourceAdapter(ABC):
     timeout_s: float = 8.0
     max_retries: int = 3
     backoff_base_s: float = 0.5
-    # Overall wall-clock budget for one fetch() call (review1-#6)
     overall_deadline_s: float = 12.0
-    # Observation age beyond which live success is still stale/down (review1-#2)
     max_age: timedelta = timedelta(hours=6)
-    # How long a last-known-good cache entry may be served (review1-#4)
     max_stale_age: timedelta = timedelta(hours=24)
-    # If True, age > max_age ⇒ down (not just stale) — for closures/alerts
     safety_critical: bool = False
-    # Optional pydantic model for data rehydration from cache (review1-#5)
     payload_model: Optional[Type[BaseModel]] = None
 
     def __init__(
@@ -84,18 +98,31 @@ class SourceAdapter(ABC):
             self.health.set_forced_down(self.name, value)
 
     def cache_key(self, spot: Spot, start: datetime, end: datetime) -> str:
-        """Stable key by source + station/product (review1-#3).
-
-        Subclasses should override to include station/grid IDs. Default uses
-        spot id + quantized UTC hour of start (not microseconds).
-        """
-        start_utc = start.astimezone(timezone.utc) if start.tzinfo else start.replace(tzinfo=timezone.utc)
+        """Stable key by source + station/product (review1-#3)."""
+        start_utc = (
+            start.astimezone(timezone.utc)
+            if start.tzinfo
+            else start.replace(tzinfo=timezone.utc)
+        )
         hour = start_utc.replace(minute=0, second=0, microsecond=0)
         return f"{self.name}:{spot.id}:{hour.strftime('%Y%m%d%H')}"
 
-    def _rehydrate(self, cached: Any) -> SourceResult:
-        """Rebuild SourceResult and typed payload from cached JSON (review1-#5)."""
-        result = SourceResult.model_validate(cached)
+    def _rehydrate(self, cached: Any) -> Optional[SourceResult]:
+        """Rebuild SourceResult and typed payload from cached JSON (review1-#5).
+
+        Returns None if the cached payload cannot be validated — callers treat
+        that as a cache miss / no-stale (never raise into the request path).
+        """
+        try:
+            result = SourceResult.model_validate(cached)
+        except ValidationError as exc:
+            logger.warning(
+                "cache rehydrate SourceResult failed source=%s err=%s",
+                self.name,
+                redact_error(exc),
+            )
+            return None
+
         if result.data is not None and result.data_type:
             try:
                 module_path, cls_name = result.data_type.rsplit(".", 1)
@@ -104,25 +131,45 @@ class SourceAdapter(ABC):
                 if issubclass(cls, BaseModel) and isinstance(result.data, dict):
                     result.data = cls.model_validate(result.data)
             except Exception as exc:  # noqa: BLE001
-                logger.warning("cache rehydrate failed source=%s err=%s", self.name, exc)
-        elif result.data is not None and self.payload_model is not None and isinstance(result.data, dict):
-            result.data = self.payload_model.model_validate(result.data)
+                logger.warning(
+                    "cache rehydrate typed payload failed source=%s err=%s",
+                    self.name,
+                    redact_error(exc),
+                )
+                return None
+        elif (
+            result.data is not None
+            and self.payload_model is not None
+            and isinstance(result.data, dict)
+        ):
+            try:
+                result.data = self.payload_model.model_validate(result.data)
+            except ValidationError as exc:
+                logger.warning(
+                    "cache rehydrate payload_model failed source=%s err=%s",
+                    self.name,
+                    redact_error(exc),
+                )
+                return None
         return result
 
     def _serialize_for_cache(self, result: SourceResult) -> dict[str, Any]:
-        """Serialize outside the retry try-block (review1-#5)."""
         if isinstance(result.data, BaseModel):
-            result.data_type = f"{result.data.__class__.__module__}.{result.data.__class__.__name__}"
+            result.data_type = (
+                f"{result.data.__class__.__module__}.{result.data.__class__.__name__}"
+            )
         return result.model_dump(mode="json")
 
     def _apply_freshness(self, result: SourceResult, now: datetime) -> SourceResult:
-        """Mark stale/down from observed_at vs max_age (review1-#2)."""
         if result.observed_at is None or result.data is None:
             return result
         age = now - result.observed_at
         if age <= self.max_age:
             return result
-        note = f"observation_age={age.total_seconds():.0f}s exceeds max_age={self.max_age.total_seconds():.0f}s"
+        note = (
+            f"observation_age={age.total_seconds():.0f}s "
+            f"exceeds max_age={self.max_age.total_seconds():.0f}s"
+        )
         result.notes = [*result.notes, note]
         if self.safety_critical or age > self.max_stale_age:
             result.status = SourceStatus.down
@@ -132,77 +179,124 @@ class SourceAdapter(ABC):
         return result
 
     async def fetch(self, spot: Spot, start: datetime, end: datetime) -> SourceResult:
-        """Fetch with cache, retry, validation, freshness, and stale fallback."""
-        now = datetime.now(timezone.utc)
+        """Fetch with single-flight, cache, retry, validation, freshness, stale fallback."""
         if start.tzinfo is None:
             start = start.replace(tzinfo=timezone.utc)
         if end.tzinfo is None:
             end = end.replace(tzinfo=timezone.utc)
         key = self.cache_key(spot, start, end)
 
+        # Single-flight: coalesce concurrent cache-miss fetches (review1-#14)
+        lock = _get_inflight_lock()
+        async with lock:
+            existing = _INFLIGHT.get(key)
+            if existing is not None:
+                waiter: asyncio.Future[SourceResult] = asyncio.get_running_loop().create_future()
+
+                def _chain(fut: asyncio.Future[SourceResult]) -> None:
+                    if waiter.done():
+                        return
+                    if fut.cancelled():
+                        waiter.cancel()
+                    elif fut.exception() is not None:
+                        waiter.set_exception(fut.exception())  # type: ignore[arg-type]
+                    else:
+                        waiter.set_result(fut.result())
+
+                existing.add_done_callback(_chain)
+                leader = False
+                fut = waiter
+            else:
+                fut = asyncio.get_running_loop().create_future()
+                _INFLIGHT[key] = fut
+                leader = True
+
+        if not leader:
+            return await fut
+
         try:
-            return await asyncio.wait_for(
-                self._fetch_inner(spot, start, end, now, key),
+            result = await asyncio.wait_for(
+                self._fetch_inner(spot, start, end, key),
                 timeout=self.overall_deadline_s,
             )
+            if not fut.done():
+                fut.set_result(result)
+            return result
         except asyncio.TimeoutError:
-            return await self._fail_or_stale(
+            result = await self._fail_or_stale(
                 key,
-                now,
+                datetime.now(timezone.utc),
                 error="overall_deadline_exceeded",
             )
+            if not fut.done():
+                fut.set_result(result)
+            return result
+        except Exception as exc:  # noqa: BLE001
+            if not fut.done():
+                fut.set_exception(exc)
+            raise
+        finally:
+            async with lock:
+                if _INFLIGHT.get(key) is fut:
+                    _INFLIGHT.pop(key, None)
 
     async def _fetch_inner(
         self,
         spot: Spot,
         start: datetime,
         end: datetime,
-        now: datetime,
         key: str,
     ) -> SourceResult:
+        now = datetime.now(timezone.utc)
         if self.forced_down:
             return await self._fail_or_stale(key, now, error="forced_down")
 
         cached = await self.cache.get(key)
         if cached is not None:
             result = self._rehydrate(cached)
-            result.cache_hit = True
-            result.notes = [*result.notes, "cache_hit"]
-            result = self._apply_freshness(result, now)
-            self._report(result)
-            return result
+            if result is not None:
+                result.cache_hit = True
+                result.notes = [*result.notes, "cache_hit"]
+                result = self._apply_freshness(result, now)
+                self._report(result)
+                return result
+            # corrupt cache entry — fall through to live
+            await self.cache.delete(key)
 
         last_error: Optional[str] = None
         for attempt in range(1, self.max_retries + 1):
             try:
-                t0 = asyncio.get_running_loop().time()
+                t0 = time.monotonic()
                 raw = await asyncio.wait_for(
                     self._fetch_live(spot, start, end),
                     timeout=self.timeout_s,
                 )
-                latency_ms = (asyncio.get_running_loop().time() - t0) * 1000
+                latency_ms = (time.monotonic() - t0) * 1000
                 validated = self._validate(raw)
                 if validated is None:
                     raise PermanentFetchError("validator returned None/empty")
 
+                fetched_at = datetime.now(timezone.utc)
                 observed_at = self._extract_observed_at(validated)
                 result = SourceResult(
                     data=validated,
-                    fetched_at=now,
-                    valid_until=now + self.ttl,
+                    fetched_at=fetched_at,
+                    valid_until=fetched_at + self.ttl,
                     status=SourceStatus.ok,
                     source_name=self.name,
                     notes=[f"attempt={attempt}"],
                     latency_ms=latency_ms,
                     observed_at=observed_at,
                 )
-                result = self._apply_freshness(result, now)
-                # Cache serialization outside retry classification path
+                result = self._apply_freshness(result, fetched_at)
                 try:
                     payload = self._serialize_for_cache(result)
                     await self.cache.set(key, payload, self.ttl)
                 except Exception as ser_exc:  # noqa: BLE001
-                    result.notes = [*result.notes, f"cache_set_failed:{type(ser_exc).__name__}"]
+                    result.notes = [
+                        *result.notes,
+                        f"cache_set_failed:{type(ser_exc).__name__}",
+                    ]
                 logger.info(
                     "fetch ok source=%s spot=%s latency_ms=%.0f attempt=%s status=%s",
                     self.name,
@@ -214,7 +308,7 @@ class SourceAdapter(ABC):
                 self._report(result)
                 return result
             except PermanentFetchError as exc:
-                last_error = f"{type(exc).__name__}: {exc}"
+                last_error = redact_error(exc)
                 logger.warning(
                     "fetch permanent_fail source=%s spot=%s err=%s",
                     self.name,
@@ -222,8 +316,8 @@ class SourceAdapter(ABC):
                     last_error,
                 )
                 break
-            except Exception as exc:  # noqa: BLE001 — transient or unexpected
-                last_error = f"{type(exc).__name__}: {exc}"
+            except Exception as exc:  # noqa: BLE001
+                last_error = redact_error(exc)
                 logger.warning(
                     "fetch fail source=%s spot=%s attempt=%s err=%s",
                     self.name,
@@ -231,59 +325,88 @@ class SourceAdapter(ABC):
                     attempt,
                     last_error,
                 )
-                # Retry only transient-ish errors (review1-#7)
-                retryable = isinstance(
-                    exc,
-                    (
-                        TransientFetchError,
-                        asyncio.TimeoutError,
-                        TimeoutError,
-                        ConnectionError,
-                        OSError,
-                    ),
-                )
-                # httpx errors by name to avoid hard import dependency at module level
-                ename = type(exc).__name__
-                if ename in {"ConnectError", "ReadTimeout", "WriteTimeout", "PoolTimeout", "RemoteProtocolError"}:
-                    retryable = True
-                if ename == "HTTPStatusError":
-                    status_code = getattr(getattr(exc, "response", None), "status_code", None)
-                    if status_code is not None and (status_code == 429 or status_code >= 500):
-                        retryable = True
-                    else:
-                        retryable = False
+                retryable, retry_after = self._classify_retry(exc)
                 if not retryable or attempt >= self.max_retries:
                     break
-                delay = self.backoff_base_s * (2 ** (attempt - 1))
-                delay *= 0.5 + random.random()  # jitter
+                if retry_after is not None:
+                    delay = max(0.0, retry_after)
+                else:
+                    delay = self.backoff_base_s * (2 ** (attempt - 1))
+                    delay *= 0.5 + random.random()
                 await asyncio.sleep(delay)
 
-        return await self._fail_or_stale(key, now, error=last_error or "unknown")
+        return await self._fail_or_stale(
+            key, datetime.now(timezone.utc), error=last_error or "unknown"
+        )
+
+    def _classify_retry(self, exc: BaseException) -> tuple[bool, Optional[float]]:
+        """Return (retryable, retry_after_s). Honour Retry-After on 429 (review1-#7)."""
+        if isinstance(exc, TransientFetchError):
+            return True, exc.retry_after_s
+        if isinstance(exc, (asyncio.TimeoutError, TimeoutError, ConnectionError, OSError)):
+            return True, None
+        ename = type(exc).__name__
+        if ename in {
+            "ConnectError",
+            "ReadTimeout",
+            "WriteTimeout",
+            "PoolTimeout",
+            "RemoteProtocolError",
+            "NetworkError",
+        }:
+            return True, None
+        if ename == "HTTPStatusError":
+            response = getattr(exc, "response", None)
+            status_code = getattr(response, "status_code", None)
+            if status_code == 429 or (status_code is not None and status_code >= 500):
+                retry_after = None
+                headers = getattr(response, "headers", None) or {}
+                raw_ra = headers.get("Retry-After") or headers.get("retry-after")
+                if raw_ra:
+                    try:
+                        retry_after = float(raw_ra)
+                    except ValueError:
+                        retry_after = None
+                return True, retry_after
+            return False, None
+        return False, None
 
     async def _fail_or_stale(self, key: str, now: datetime, *, error: str) -> SourceResult:
+        safe_error = redact(error)
         stale = await self.cache.get_stale(key, max_stale_age=self.max_stale_age)
         if stale is not None:
-            result = self._as_stale(stale, now, notes=[f"live_failed: {error}", "serving_stale"])
-            result = self._apply_freshness(result, now)
-            # If freshness demoted to down, keep that
-            self._report(result, failure_note=error)
-            return result
+            result = self._as_stale(
+                stale, now, notes=[f"live_failed: {safe_error}", "serving_stale"]
+            )
+            if result is None:
+                # corrupt stale entry
+                pass
+            else:
+                result = self._apply_freshness(result, now)
+                self._report(result, failure_note=safe_error)
+                return result
         result = SourceResult(
             data=None,
             fetched_at=now,
             valid_until=now,
             status=SourceStatus.down,
             source_name=self.name,
-            notes=[f"live_failed: {error}", "no_stale_cache"],
+            notes=[f"live_failed: {safe_error}", "no_stale_cache"],
         )
-        self._report(result, failure_note=error)
+        self._report(result, failure_note=safe_error)
         return result
 
-    def _as_stale(self, cached: Any, now: datetime, notes: list[str]) -> SourceResult:
+    def _as_stale(
+        self, cached: Any, now: datetime, notes: list[str]
+    ) -> Optional[SourceResult]:
         result = self._rehydrate(cached)
+        if result is None:
+            return None
         result.status = SourceStatus.stale
         result.cache_hit = True
-        result.notes = [*result.notes, *notes]
+        # Bound note growth (review1-#19)
+        merged = [*result.notes, *notes]
+        result.notes = merged[-20:]
         result.valid_until = now
         return result
 
@@ -297,10 +420,11 @@ class SourceAdapter(ABC):
                 status=result.status,
             )
         else:
-            self.health.record_failure(self.name, failure_note or ";".join(result.notes) or "down")
+            self.health.record_failure(
+                self.name, redact(failure_note or ";".join(result.notes) or "down")
+            )
 
     def _extract_observed_at(self, validated: Any) -> Optional[datetime]:
-        """Pull observation time from validated payload if present."""
         if isinstance(validated, BaseModel):
             for attr in ("observed_at", "time", "observation_time"):
                 v = getattr(validated, attr, None)
