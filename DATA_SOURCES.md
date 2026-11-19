@@ -262,37 +262,48 @@ https://coastwatch.pfeg.noaa.gov/erddap/griddap/erdVHNchla8day.json?chla[(last)]
 ```
 (Note altitude dimension `(0.0)` is required.)
 
-**Real sample:** time `2026-11-09T00:00:00Z`, `chla` ≈ 1.7–2.4 mg m^-3 near 37.60 N, −122.60 W.
+**Real sample:** time `2026-11-09T00:00:00Z`, `chla` ≈ 1.7–2.4 mg m^-3 near 37.60 N, −122.60 W. Re-checked same afternoon: `(last)` still 2026-11-09 (cloudy-coast lag).
 
-**Latency:** 8-day composite `(last)` was ~10 days behind “today” on 2026-11-19 — cloudy CA coast often gaps daily fields; prefer 3- or 8-day.
+**Latency:** Prefer **3- or 8-day** composites for CA coast; daily often sparse. Values are linear **mg m^-3**; NASA ocean-color chl is commonly **log-scaled for display** (`colorBarScale=Log` on related products) — apply thresholds on linear values, not log10.
 
-**PACE:** No dedicated “PACE chlorophyll” dataset showed up in CoastWatch search today (MODIS/SeaWiFS/VIIRS hits only). Treat PACE as **unverified here**; revisit NASA Ocean Color / future CoastWatch ingest.
+#### 5a-ii. Tiered chlorophyll-a thresholds (Bay Area / central CA)
 
-#### 5b. C-HARM (Pseudo-nitzschia / domoic acid probability)
+| Tier | Chl-a (mg m^-3) | Where it applies | How to use with VIIRS | Source |
+|------|-----------------|------------------|------------------------|--------|
+| **Coastal bloom front** | **> 5** | Central & southern CA open coast (SeaWiFS-era definition still used as a remote-sensing bloom/frontal marker) | Flag pixels / smoothed nearshore medians on daily or 8-day VIIRS when chl > 5; Nezlin used ~10 km smoothing — match with spatial median before alerting | Nezlin et al. 2012, *JGR Oceans* (doi:10.1029/2011JC007773); SCCWRP reprint https://ftp.sccwrp.org/pub/download/DOCUMENTS/AnnualReports/2011AnnualReport/ar11_305_322.pdf — threshold ≈ 85th percentile nearshore chl |
+| **Elevated / watch** | **~5–13** | Outer coast + Bay mouth | Treat as elevated biomass; **not** by itself a Pseudo-nitzschia toxin call — pair with C-HARM (when available) + CDPH | Same Nezlin bloom definition as lower bound; SF Bay protective threshold below |
+| **SF Bay “protective”** | **≤ 13** preferred; risk rises above | **Inside San Francisco Bay** (eutrophication / HAB-abundance context — not outer ocean) | Use Bay-oriented products or in-situ; satellite chl in Bay is optically complex | Sutula et al. 2017, *Estuaries and Coasts* / PMC6134865 — CPA “protective” chl ≈ **13 mg m^-3**; “at risk” **25–40 mg m^-3** for HAB-alert / low-DO probability |
+| **SF Bay “at risk”** | **25–40** | SF Bay subembayments | Strong management signal for nutrients/HAB risk inside Bay | Same |
 
-**Primary (v3.1 nowcast):** `wvcharmV3_0day`  
-Forecasts: `wvcharmV3_1day`, `_2day`, `_3day` (also `*_LonPM180` variants).  
-Info: `https://coastwatch.pfeg.noaa.gov/erddap/info/wvcharmV3_0day/index.html`
+**Important:** C-HARM’s operational **Pseudo-nitzschia bloom threshold is cell density (10,000 cells L^-1)**, not a chl-a cut (Anderson et al. / HABMAP: https://calhabmap.org/hab-forecast). Chl is a **predictor input** (gap-filled VIIRS), not the decision variable for toxin advisories. **Never open shellfish harvest on chl alone** — CDPH is authoritative.
 
-**Critical quirk:** longitude axis is **0–360** (min ≈ 232.5), **not** −180–180. Use `237.3` for −122.7° E.
+**PACE OCI:** Searched CoastWatch West Coast (`coastwatch.pfeg.noaa.gov`), OceanWatch, PolarWatch, and central CoastWatch ERDDAP for “PACE” on 2026-11-19 — **no PACE/OCI chlorophyll dataset IDs** in those catalogs (0 rows / 502s on some hosts). NASA CMR *does* list PACE OCI products (e.g. `PACE_OCI_L3M_BGC`, `PACE_OCI_L2_BGC_NRT`) via Earthdata — **not ERDDAP-callable here**. Keep VIIRS as primary satellite chl until an ERDDAP mirror appears.
 
-**Variables + thresholds (from attributes / HABMAP):**
-| Variable | Meaning |
-|----------|---------|
-| `pseudo_nitzschia` | P(Pseudo-nitzschia **> 10,000 cells/L**) |
-| `particulate_domoic` | P(particulate DA **> 500 ng/L**) |
-| `cellular_domoic` | P(cellular DA **> 10 pg/cell**) |
+#### 5b. C-HARM (Pseudo-nitzschia / domoic acid probability) — **availability status**
 
-`_FillValue` = −99999.0 (JSON may show `null`).
+**Morning 2026-11-19 (America/Los_Angeles):** Live query succeeded against `wvcharmV3_0day` on CoastWatch:
 
-**Bloom threshold to use in-app (cited):** **10,000 cells/L** Pseudo-nitzschia as C-HARM’s bloom cutoff (Trainer & Suddleson 2005; Lane et al. 2009; Anderson et al. — summarized at https://calhabmap.org/hab-forecast). Interpret model output as **probability**, not cell count. For UI alerts, consider highlighting pixels with P ≳ 0.5–0.7 **and** confirming against CDPH advisories (section 6) — never open harvest on model alone.
+- Variables: `pseudo_nitzschia`, `particulate_domoic`, `cellular_domoic`, `chla_filled`, `r486_filled`, `r551_filled`, `salinity`, `water_temparture` (typo in attribute name is upstream).
+- Lon quirk: **0–360** axis (min ≈ 232.5). Working query used:  
+  `.../griddap/wvcharmV3_0day.json?pseudo_nitzschia[(last)][(37.4):1:(37.8)][(237.3):1:(237.6)]`
+- `(last)` time then: **2026-11-02T12:00:00Z** (~17 days stale) with P ≈ 0.70–0.88 — already not “today-fresh.”
 
-**Real sample:** `(last)` returned **2026-11-02T12:00:00Z** with P ≈ 0.70–0.88 near 37.39 N, 237.3 E — i.e. multi-day staleness possible; check `time` every call.
+**Afternoon 2026-11-19 re-check:** Same IDs (`wvcharmV3_0day`, `*_LonPM180`, `charmForecast0dayV2`, …) return **HTTP 404 “Currently unknown datasetID”** on both `coastwatch.pfeg.noaa.gov` and `oceanview.pfeg.noaa.gov`. Catalog searches for `charm` / `Pseudo-nitzschia` / `domoic` and `allDatasets` filters for `*charm*` also return **no matches**. SCCOOS/CenCOOS ERDDAP hosts unreachable or empty for charm.
 
-**Backup:** SCCOOS/CenCOOS HABMAP pages; CDPH biotoxin line (human health source of truth).
+**Honest status for engineering:** Treat C-HARM ERDDAP as **DOWN / unpublished as of 2026-11-19 ~15:35–15:40 PST**, after having been queryable earlier the same day with stale Nov 2 fields. Use probe `scripts/research_probes/08_charm_status.py` before relying on it. Fallback: HABMAP/SCCOOS bulletin pages + CDPH.
 
-**Probe:** `scripts/research_probes/04_erddap_sst_chl.py`  
-**Verified on:** 2026-11-19
+**Bloom / toxin probability thresholds (when feed returns):**
+
+| Variable | Threshold encoded in long_name |
+|----------|--------------------------------|
+| `pseudo_nitzschia` | P(cells **> 10,000 L^-1**) |
+| `particulate_domoic` | P(pDA **> 500 ng L^-1**) |
+| `cellular_domoic` | P(cDA **> 10 pg cell^-1**) |
+
+UI: highlight P ≳ 0.5–0.7 **and** require CDPH clearance for harvest messaging.
+
+**Probe:** `scripts/research_probes/04_erddap_sst_chl.py`, `08_charm_status.py`  
+**Verified on:** 2026-11-19 (live → later outage)
 
 ---
 
@@ -343,27 +354,25 @@ Info: `https://coastwatch.pfeg.noaa.gov/erddap/info/wvcharmV3_0day/index.html`
 **Primary statewide (queryable):** California Open Data — Beach Watch package  
 `https://data.ca.gov/dataset/beach-water-quality-postings-and-closures`  
 CKAN API: `https://data.ca.gov/api/3/action/package_show?id=beach-water-quality-postings-and-closures`  
-Metadata modified **2026-10-13** (not necessarily row-level freshness).
+Package metadata modified **2026-10-13**.
 
 **Datastore resource IDs verified:**
 
 | Resource | ID | Notes |
 |----------|-----|------|
-| Beach Posting and Closures – Advisories | `d5cd6a23-829c-426d-a63e-689a55a3db9c` | 35,748 rows; fields include `DateofAdvisory`, `AdvisoryType`, `AdvisoryCause`, `Description`, `DescriptionofArea`, … |
-| Beach Water Quality Monitoring Results – Bacteria | `7bd961cf-abe4-433b-8033-378161237ff3` | 88,728+ rows; `Parameter` (e.g. Total Coliforms), `Result`, `Unit` (MPN/100ml), `County`, `SampleDate` |
-| Monitoring Stations | `98e628ff-d012-4982-ad32-b9f9ad8ab524` | e.g. Pacifica “Linda Mar Beach #7” 37.5976, −122.5047; County San Mateo; agency San Mateo EH |
+| Beach Posting and Closures – Advisories | `d5cd6a23-829c-426d-a63e-689a55a3db9c` | Fields include `DateofAdvisory`, `AdvisoryType`, `DescriptionofArea`, `County`, … |
+| Beach Water Quality Monitoring Results – Bacteria | `7bd961cf-abe4-433b-8033-378161237ff3` | `Parameter`, `Result`, `Unit` (MPN/100ml), `County`, `SampleDate` |
+| Monitoring Stations | `98e628ff-d012-4982-ad32-b9f9ad8ab524` | e.g. Pacifica Linda Mar #7 @ 37.5976, −122.5047 |
 
-Example:
-```
-https://data.ca.gov/api/3/action/datastore_search?resource_id=7bd961cf-abe4-433b-8033-378161237ff3&limit=3&q=San%20Mateo
-```
+**Freshness re-check 2026-11-19 (SQL datastore):**
+- Latest San Mateo **bacteria** `SampleDate` returned: **2026-03-02** (~8.5 months behind “today”) — **not suitable as same-week swim truth** without another source.
+- Latest Pacifica / Ocean Beach / Candlestick **advisory** rows sampled: **2025-10-21** posting language in `DescriptionofArea`.
 
-**Local backups / supplements:**
-- San Mateo County Environmental Health beach monitoring (HTML; redirects — confirm current URL in browser).
-- SF beach water quality reports on sf.gov (URL pattern `/reports/{month}-{year}/beach-water-quality` — verify month).
-- Heal the Bay Beach Report Card: public site exists; **`api.healthebay.org` TLS failed** in this environment today → treat any HTB API as **unverified**.
+**Heal the Bay / Beach Report Card:** Retried `api.healthebay.org` (TLS EOF), `beachreportcard.org/api/v1/locations`, `/api/locations`, `/api/v1/beaches` — all returned **HTML SPA shells**, not JSON. **No working machine-readable HTB API confirmed.**
 
-**Gotchas:** BeachWatch historical bulk is excellent for trends; for **same-day swim decisions**, prefer county EH + NWS Beach Hazards / SRF. Field names are mixed Case (`DateofAdvisory`).
+**County pages:** Common San Mateo / SF beach URLs (`smchealth.org/beach-monitoring`, `sf.gov/reports/november-2026/beach-water-quality`, several alternates) returned **404** on 2026-11-19. Treat county HTML as unstable; prefer BeachWatch datastore + NWS Beach Hazards / SRF for UX until a live county feed is rediscovered.
+
+**Gotchas:** Historical bulk ≠ operational nowcast. Field names mixed Case.
 
 **Probe:** `scripts/research_probes/05_fires_uv_beach.sh`  
 **Verified on:** 2026-11-19
@@ -444,6 +453,49 @@ https://coastwatch.pfeg.noaa.gov/erddap/griddap/jplMURSST41anom1day.json?sstAnom
 
 ---
 
+### 11. Sunrise / sunset / civil twilight (offline-calc check)
+
+**Primary:** USNO Astronomical Applications API — Rise/Set/Transit one-day  
+`https://aa.usno.navy.mil/api/rstt/oneday`
+
+**Auth:** None.
+
+**Example (Half Moon Bay, 2026-11-19, PST):**
+```
+https://aa.usno.navy.mil/api/rstt/oneday?date=2026-11-19&coords=37.5025,-122.4822&tz=-8&dst=false
+```
+Params: `date` (YYYY-MM-DD), `coords` as `lat,lon` (decimal), `tz` = offset hours from UTC (−8 for PST, −7 for PDT), `dst` true/false (document actual `properties.data.isdst` in response).
+
+**Real sample (verified 2026-11-19):**
+```json
+"sundata": [
+  {"phen": "Begin Civil Twilight", "time": "06:26  ST"},
+  {"phen": "Rise", "time": "06:54  ST"},
+  {"phen": "Upper Transit", "time": "11:55  ST"},
+  {"phen": "Set", "time": "16:56  ST"},
+  {"phen": "End Civil Twilight", "time": "17:25  ST"}
+],
+"tz": -8.0, "isdst": false, "curphase": "Waxing Gibbous"
+```
+Also returns moon rise/set/phase. Times labeled `ST`/`DT` relative to requested offset — **not** IANA zone IDs.
+
+**Quirks:** Caller must pick correct `tz` for the date (PST vs PDT). Passing `dst=true` with `tz=-8` in November still yielded `isdst: false` and ST labels — trust the returned flag/times. Good for checking an offline NOAA/USNO algorithm implementation.
+
+**Backup:** sunrise-sunset.org (no key):
+```
+https://api.sunrise-sunset.org/json?lat=37.5025&lng=-122.4822&date=2026-11-19&tzid=America/Los_Angeles
+```
+Verified same day: sunrise `6:54:05 AM`, sunset `4:56:40 PM`, civil twilight begin `6:26:03 AM`, end `5:24:43 PM` (`tzid` echoed). Without `tzid`, `formatted=0` returns UTC ISO timestamps. Slight second-level differences vs USNO are expected.
+
+**NOAA Solar Calculator:** `https://gml.noaa.gov/grad/solcalc/` is a **browser JavaScript calculator** (HTML 200 confirmed). **No documented public REST endpoint** found for automated calls — use as human cross-check only, not as an API.
+
+**Rate limits:** Be polite; these are public government/community APIs without published keys.
+
+**Probe:** `scripts/research_probes/07_sunrise_sunset.sh`  
+**Verified on:** 2026-11-19
+
+---
+
 ## Part B — Domain rules (cited)
 
 > Not legal advice. Seasons and closures change (whale entanglement RAMP, domoic acid). Re-check CDFW + CDPH on the day of use. **Checked against public sources on 2026-11-19.**
@@ -456,22 +508,64 @@ https://coastwatch.pfeg.noaa.gov/erddap/griddap/jplMURSST41anom1day.json?sstAnom
 - **MPA caution:** **Montara SMR** — no take. **Pillar Point SMCA** — take of living marine resources generally prohibited except listed finfish/crab/squid methods (https://www.parks.ca.gov/?page_id=27716). Do **not** recommend clamming inside no-take MPAs / Fitzgerald tidepools.
 - **Always:** CDPH advisory map + sport license.
 
-### B2. CA crab & clam rules (high level)
+### B2. CA crab & clam rules — verbatim CCR (retrieved 2026-11-19)
 
-**Dungeness crab (recreational)** — 14 CCR §29.85 / CDFW summaries:
-- Season (nominal): first Saturday in November → **June 30** (central) / **July 30** (Del Norte–Mendocino).  
-- For **2026–27** CDFW flyer: opens **Saturday Nov 7, 2026** (confirm PDF DocumentID=195690 on wildlife.ca.gov). Prior year (2025–26) had northern domoic delays & trap restrictions — expect in-season RAMP/health changes.
-- Bag: **10** crabs; min size **5¾ in** (carapace, excluding spines).  
-- **No Dungeness** from SF Bay / San Pablo Bay between Golden Gate and Carquinez.  
-- License: CA sport fishing license; **crab trap validation** required to use traps (~$2.98 in 2025/26 fee tables). Hoop nets/snares have separate gear rules; hoop nets must be tended (recent rules: service intervals).
+Source for all quotes unless noted: Cornell LII Cal. Code Regs. Title 14 (retrieval date **2026-11-19**).  
+URLs: [§29.85](https://www.law.cornell.edu/regulations/california/14-CCR-29.85), [§29.80](https://www.law.cornell.edu/regulations/california/14-CCR-29.80), [§29.20](https://www.law.cornell.edu/regulations/california/14-CCR-29.20), [§29.25](https://www.law.cornell.edu/regulations/california/14-CCR-29.25), [§29.35](https://www.law.cornell.edu/regulations/california/14-CCR-29.35), [§29.40](https://www.law.cornell.edu/regulations/california/14-CCR-29.40).
 
-**Rock crab:** Different section/limits — verify current §29.85 subsections before implementing (not fully re-probed line-by-line today).
+#### §29.85 Crabs (excerpt)
 
-**Clams:**
-- General §29.20: no universal closed season; species-specific limits apply.  
-- **Cockles / littlenecks etc. (§29.35):** commonly **50 in combination**, **1½ in** minimum (confirm text before ship).  
-- **Gaper / Washington (§29.25):** low bag (order of **10/species**, aggregate caps — confirm exact CCR text before ship).  
-- Hand tools only; no hydraulic pumps.
+> (a) Any individual who fishes for crabs using crab trap(s) pursuant to subsection 29.80(c), shall have in possession a valid Recreational Crab Trap Validation (Section 701, Title 14, CCR).  
+> (b) Dungeness crabs (Cancer magister):  
+> (1) Dungeness crab may not be taken from or possessed if taken from San Francisco Bay and San Pablo Bay, plus all their tidal bays, sloughs and estuaries between the Golden Gate Bridge and Carquinez Bridge.  
+> (2) Open season: Fishing rules for Dungeness crab may be changed during the year or in-season by the director under the authority of subsection 29.80(c)(7). …  
+> (A) Del Norte, Humboldt and Mendocino counties: From the first Saturday in November through July 30.  
+> (B) All other counties: From the first Saturday in November through June 30.  
+> (3) Limit: Ten.  
+> (5) Minimum size: Five and three-quarter inches measured by the shortest distance through the body from edge of shell to edge of shell directly in front of and excluding the points (lateral spines).  
+> (c) All crabs of the Cancer genus except Dungeness crabs, but including: yellow crabs, rock crabs, red crabs and slender crabs:  
+> (1) Open season: All year. …  
+> (2) Limit: Thirty-five.  
+> (3) Minimum size: Four inches measured by the shortest distance through the body, from edge of shell to edge of shell at the widest part, except there is no minimum size in Fish and Game districts 8 and 9.
+
+#### §29.80 Gear (selected excerpts)
+
+> (b)(2) The owner or operator of a hoop net shall raise the hoop net to the surface and inspect the contents of the hoop net at intervals not to exceed 2 hours.  
+> (b)(3) It is unlawful to abandon or leave unchecked a hoop net for more than 2 hours. …  
+> (c)(1) Crab traps shall have at least two rigid circular openings of not less than four and one-quarter inches inside diameter so constructed that the lowest portion of each opening is no lower than five inches from the top of the trap.  
+> (c)(5) Every crab trap shall be raised, cleaned, and emptied (serviced) at intervals not to exceed 9 days, weather conditions at sea permitting, and no crab trap shall be abandoned in the waters of this state.  
+> (c)(6)(A) An individual shall not operate more than 10 deployed traps, except an individual may service up to 10 additional traps if the individual has in possession written permission from the operator(s) of the additional traps …  
+> (e) Crab trap areas: Crab traps, including crab loop traps, may be used north of Point Arguello, Santa Barbara County, to take all species of crabs.
+
+#### Clams
+
+**§29.20 Clams General (excerpt):**
+
+> (a) Except as provided in this article, there are no closed seasons, bag limits or size limits on saltwater clams.  
+> (b) Fishing hours: one-half hour before sunrise to one-half hour after sunset.  
+> (c) Gear restrictions. It shall be unlawful to use anything other than the following hand-operated devices to take clams: spades, shovels, hoes, forks, rakes, devices that use suction to remove clams commonly known as slurp guns or clam guns, or rigid pipes used to prevent the collapse of holes when digging for clams. It shall be unlawful to use any other device to take clams, including any hydraulic pump or other device capable of liquifying sand. …
+
+**§29.25 Gaper Clams and Washington Clams (full body as published on LII):**
+
+> Limit: Ten of each species, except in Humboldt Bay the limit is fifty in combination; however, no more than 25 gaper clams may be taken or possessed. In Elkhorn Slough the limit is twelve in combination. All gaper clams and Washington clams dug, regardless of size or broken condition, must be retained until the bag limit is reached. For purposes of this section, clams commonly termed horse clams or horseneck clams are gaper clams, not geoduck clams regulated pursuant to Section 29.30, Title 14, CCR.
+
+**§29.35 Littleneck Clams, Soft-Shell Clams, Chiones, Northern Quahogs, and Cockles:**
+
+> (a) Limit: Fifty in combination.  
+> (b) Minimum size: One and one-half inches in greatest diameter, except there is no size limit for soft-shell clams. All soft-shell clams dug, regardless of size or broken condition, must be retained until the bag limit is reached.
+
+**§29.40 Pismo Clams (excerpt):**
+
+> (a) Open season: May be taken in Santa Cruz and Monterey counties September 1 through April 30. In all other counties, except in state marine reserves or other marine protected areas which prohibit the take of clams (see Section 632), Pismo clams may be taken at any time of the year.  
+> (b) Limit: Ten.  
+> (c) Minimum size: Five inches in greatest shell diameter north of the boundary between San Luis Obispo and Monterey counties; four and one-half inches in greatest shell diameter south of the boundary, between San Luis Obispo and Monterey counties.
+
+#### 2026–27 recreational Dungeness season status (checked 2026-11-19)
+
+- Nominal opener: **Saturday, Nov 7, 2026** (CDFW Recreational Dungeness Crab Regulations 2026–27 PDF, DocumentID=195690).  
+- **Trap prohibition:** recreational crab **traps restricted** CA/OR border → Point Conception (Zones 1–5) until **at least Jan 1, 2027** (whale entanglement RAMP). Hoop nets / snares / hand still allowed where season is open.  
+- **Domoic acid delay (north of TideWise core):** recreational take prohibited Reading Rock SMPA southern boundary (**41°17.6′ N**) → Ten Mile SMR southern boundary (**39°33.3′ N**) per CDFW in-season notices (expanded Nov 5, 2026). **HMB / Pacifica / SF ocean remain in the open area** under trap restriction (verify before messaging).  
+- Sources: https://wildlife.ca.gov/News/Archive/recreational-dungeness-crab-fishing-begins-in-most-areas-nov-7-with-trap-restrictions-commercial-season-delayed ; https://wildlife.ca.gov/Fishing/Ocean/Regulations/Inseason
 
 **License:** https://wildlife.ca.gov/Licensing/Fishing
 
@@ -521,22 +615,24 @@ Orientation = **approximate direction the shore faces toward open water** (degre
 
 ## Risks & Unverified
 
-| Item | Status |
+| Item | Status (as of 2026-11-19) |
 |------|--------|
-| NASA PACE chlorophyll on CoastWatch | **Not found** in search today |
-| POWER `ALLSKY_SFC_UV_INDEX` / `UVB` for SF daily | Returned all fill (−999) — **unverified as usable** |
-| Heal the Bay API | TLS failure — **unverified** |
-| FIRMS area API with live MAP_KEY | Not exercised (no key in env); CSV feeds OK |
-| Exact CCR text for §29.25 / §29.35 bag numbers | Summarized from secondary sources / search; **re-read CCR before shipping limits UI** |
-| Rock crab recreational limits | Not fully expanded here |
-| 2026–27 in-season crab trap closures / DA zones | Change quickly — **must live-check CDFW** |
-| C-HARM `(last)` age | Can be days old (saw 2026-11-02 on 2026-11-19) |
+| **C-HARM ERDDAP datasets** | **OUTAGE / unpublished afternoon** — IDs that worked in the morning (`wvcharmV3_0day` etc.) now 404 on CoastWatch & OceanView; catalog empty. Earlier `(last)` was already **2026-11-02**. |
+| **NASA PACE chlorophyll on ERDDAP** | **Still not found** on CoastWatch / OceanWatch / PolarWatch. CMR lists `PACE_OCI_L3M_BGC` etc. via Earthdata only. |
+| POWER `ALLSKY_SFC_UV_INDEX` / `UVB` for SF daily | All fill (−999) — use EPA UV instead |
+| Heal the Bay / Beach Report Card API | **Still no JSON API** (TLS fail or HTML SPA only) |
+| BeachWatch operational freshness | Queryable, but San Mateo bacteria max date **2026-03-02**; advisories sample **2025-10** — **stale for same-day swim** |
+| SF / San Mateo county beach HTML | Common URLs **404** today |
+| FIRMS area API with live MAP_KEY | Not exercised (no key); CSV feeds OK |
+| NOAA Solar Calculator REST | **None** — JS page only |
+| Rock crab / hoop-net full §29.80 text | Partial excerpts quoted; full section is long — keep LII link |
+| 2026–27 crab trap / DA zones | Live as of Nov 19 notes above — **re-check CDFW in-season page before every release** |
 | EONET “open” wildfires | May include stale events |
 | CDPH TLS | Certificate issues from some runtimes |
-| Real-time Golden Gate current meter | Not in today’s `type=currents` region list — predictions only via harmonic stations |
-| Water temperature product at 9414290 | No data today |
+| Real-time Golden Gate current meter | Not in `type=currents` region list today |
+| Water temperature at 9414290 | No data earlier today |
 | Shoreline orientation angles | Approximate |
-| AirNow / HMS smoke polygons | Not probed in depth |
+| AirNow / HMS smoke | Not deeply probed |
 
 ---
 
@@ -547,12 +643,14 @@ Orientation = **approximate direction the shore faces toward open water** (degre
 | `scripts/research_probes/01_coops_tides.sh` | CO-OPS metadata + datagetter |
 | `scripts/research_probes/02_ndbc_buoys.sh` | NDBC realtime2 + spectral |
 | `scripts/research_probes/03_nws_weather.sh` | points, alerts, PZZ545, SRF |
-| `scripts/research_probes/04_erddap_sst_chl.py` | MUR, VIIRS chl, C-HARM, MUR anom |
+| `scripts/research_probes/04_erddap_sst_chl.py` | MUR, VIIRS chl, C-HARM (when up), MUR anom |
 | `scripts/research_probes/05_fires_uv_beach.sh` | FIRMS, EONET, POWER, EPA UV, BeachWatch |
 | `scripts/research_probes/06_cdph_shellfish.sh` | CDPH pages + ArcGIS layers |
+| `scripts/research_probes/07_sunrise_sunset.sh` | USNO + sunrise-sunset.org |
+| `scripts/research_probes/08_charm_status.py` | C-HARM dataset presence check |
 
-Optional env: `FIRMS_MAP_KEY` for area API; `UA` to override User-Agent.
+Optional env: `FIRMS_MAP_KEY` for area API; `UA` to override User-Agent; `LAT`/`LON`/`DATE`/`TZOFF` for sunrise probe.
 
 ---
 
-*End of DATA_SOURCES.md — generated for TideWise research session, verified 2026-11-19.*
+*End of DATA_SOURCES.md — TideWise research, verified/updated 2026-11-19.*
