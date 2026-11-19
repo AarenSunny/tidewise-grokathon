@@ -35,6 +35,7 @@ Judges: this log records decisions, bugs, live-data surprises, review triage, an
 ### Bugs found
 - **`GET /spots` returned empty list.** Root cause: `api.py` constructed `RegionConfig()` instead of `load_region()`. Fixed by wiring the YAML loader at module import. Verified: 3 placeholder spots returned.
 - Activity YAML write failed until `backend/config/activities/` was created (mkdir miss during scaffold).
+- **`grok-sessions/build/` ignored by git:** Root cause: `.gitignore` had a bare `build/` pattern that matched any directory named build. Fixed by removing that pattern (frontend output is `frontend/dist/` only).
 
 ### Real-world data issues
 - N/A this phase (no live calls).

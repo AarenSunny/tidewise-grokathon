@@ -20,8 +20,7 @@ htmlcov/
 # JavaScript / frontend
 node_modules/
 frontend/dist/
-dist/
-build/
+/dist/
 coverage/
 *.tsbuildinfo
 
