@@ -567,6 +567,55 @@ URLs: [§29.85](https://www.law.cornell.edu/regulations/california/14-CCR-29.85)
 - **Domoic acid delay (north of TideWise core):** recreational take prohibited Reading Rock SMPA southern boundary (**41°17.6′ N**) → Ten Mile SMR southern boundary (**39°33.3′ N**) per CDFW in-season notices (expanded Nov 5, 2026). **HMB / Pacifica / SF ocean remain in the open area** under trap restriction (verify before messaging).  
 - Sources: https://wildlife.ca.gov/News/Archive/recreational-dungeness-crab-fishing-begins-in-most-areas-nov-7-with-trap-restrictions-commercial-season-delayed ; https://wildlife.ca.gov/Fishing/Ocean/Regulations/Inseason
 
+#### Gear allowed during trap restriction (2026–27, retrieved 2026-11-19 ~15:43 PST)
+
+**Short answer (explicit in CDFW sources):** Yes — while the recreational **crab trap** restriction is in effect, CDFW says **hoop nets, crab snares (loop traps), and hand take** remain allowed in open areas. CDFW states the restriction covers **Fishing Zones 1–5** (California/Oregon border to Point Conception), i.e. **all** zones that include our coast. Restriction runs **until at least January 1, 2027**; next RAMP assessments listed as **Dec 15–18** and **Jan 13–15** (subject to change).
+
+**Our zone (derived from CDFW zone boundaries quoted on the In-Season page):** *Fishing Zone 3* = "Sonoma/Mendocino county line, 38°46.125' N. Latitude to Pigeon Point, 37°11' N. Latitude" (In-Season entry May 15, 2026) → covers **Marin, SF, and San Mateo coast down to Pigeon Point**. *Fishing Zone 4* = "Pigeon Point, 37°11' N Latitude to Point Conception, 34°27' N Latitude" (In-Season entry March 13, 2026) → Año Nuevo/Santa Cruz southward. The *mapping of our spots to Zone 3 is my reading of those latitudes*; the formal zone definitions are in 14 CCR §132.8(a)(7) (not fetched here). SF Bay / San Pablo Bay: no Dungeness may be taken at all (§29.85(b)(1)).
+
+**Verbatim quotes**
+
+1. CDFW news release, Oct 30, 2026 — https://wildlife.ca.gov/News/Archive/recreational-dungeness-crab-fishing-begins-in-most-areas-nov-7-with-trap-restrictions-commercial-season-delayed (retrieved 2026-11-19):
+   > "The use of recreational crab traps will be restricted (PDF) from the California/Oregon border to Point Conception (34° 27' N latitude, Fishing Zones 1-5) until at least January 1, 2027, due to the number of confirmed entanglements this year and high abundance of humpback whales across the fishing grounds."
+   > "The trap restriction does not affect the use of hoop nets and crab snares (loop traps), and CDFW reminds anglers that all hoop nets must be serviced every two hours and cannot be left unattended for longer periods."
+
+2. CDFW Whale Safe Fisheries / RAMP page — https://wildlife.ca.gov/Conservation/Marine/Whale-Safe-Fisheries (retrieved 2026-11-19):
+   > "The season opened to hoop net and loop trap fishing on Saturday, November 7, 2026. Crab traps are prohibited until at least January 1, 2027."
+   > "A temporary crab trap prohibition is also implemented in Fishing Zones 1-5, and a Fleet Advisory for Fishing Zones 1-5 has been issued until at least January 1, 2027."
+
+3. CDFW In-Season Ocean Fishing Regulation Changes, Oct 30, 2026 entry — https://wildlife.ca.gov/Fishing/Ocean/Regulations/Inseason (retrieved 2026-11-19):
+   > "In coastal waters that are not closed due to a domoic acid advisory, the recreational Dungeness crab season will open on Nov. 7 under a trap prohibition. Only hoop nets, loop traps, or the hands may be used to capture crab."
+
+4. CDFW "Recreational Dungeness Crab Regulations 2026-27" PDF (updated Oct 29, 2026) — https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=195690 (retrieved 2026-11-19), Gear Type column:
+   > "Taken by hand, crab trap, hoop net, or by crab snare … When crab traps are restricted due to entanglement risk, take by hand, hoop net, or crab snare with up to 6 loops elevated is allowed."
+   (Text extraction of the table is garbled; the sentence above is as extracted.)
+
+5. CDFW "Summary of Northern California Hoop Net Regulations" (effective Jan 1, 2026) — https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=195608 (retrieved 2026-11-19 via search excerpt):
+   > "Hoop Net Allowance: unlimited"
+   > "Except on public piers, you cannot use more than two (2) rods and lines, two (2) hand lines, or two (2) nets, traps or other legal devices (including hoop nets) to take crabs."
+   > "Service Interval (statewide): Hoop nets must be serviced every 2 hours; it is unlawful to abandon or leave unchecked a hoop net for more than 2 hours."
+   ⚠ These two bullets look inconsistent on their face ("unlimited" vs. "two … nets … (including hoop nets)"); the sources do not reconcile them in what I read. **Treat the per-person hoop-net count as unconfirmed** — see 14 CCR §29.80(b)(4)(B) below and re-read the PDF before showing a number.
+
+6. 14 CCR §29.80 (Cornell LII, https://www.law.cornell.edu/regulations/california/14-CCR-29.80, retrieved 2026-11-19):
+   > "(b) Hoop nets. Hoop nets may be used to take spiny lobsters and all species of crabs."
+   > "(b)(2) The owner or operator of a hoop net shall raise the hoop net to the surface and inspect the contents of the hoop net at intervals not to exceed 2 hours."
+   > "(b)(4)(B) North of Point Arguello to the California-Oregon border, there is no limit on the number of hoop nets that may be possessed or deployed."
+   > "(c)(7)(B)2. Recreational Dungeness crab season delay and continuation of the crab trap prohibition specified in subsection 29.80(c)(4), whereby the director shall prohibit the deployment and use of recreational crab traps until new data indicates the numerical triggers … are no longer met …"
+   > "(c)(7)(C) Recreational management action may be implemented statewide or by fishing zone(s) (as defined in subsections 132.8(a)(7)(A)-(G)), if the director demonstrates less-than-statewide action protects humpback whales, blue whales, and/or Pacific leatherback sea turtles based on best available science."
+   > "(d) Crab loop traps may have up to six loops."
+   > "(e) Crab trap areas: Crab traps, including crab loop traps, may be used north of Point Arguello, Santa Barbara County, to take all species of crabs."
+
+7. 14 CCR §29.85 (Cornell LII, https://www.law.cornell.edu/regulations/california/14-CCR-29.85, retrieved 2026-11-19):
+   > "(a) Any individual who fishes for crabs using crab trap(s) pursuant to subsection 29.80(c), shall have in possession a valid Recreational Crab Trap Validation (Section 701, Title 14, CCR)."
+   > "(b)(3) Limit: Ten."
+   > "(b)(5) Minimum size: Five and three-quarter inches …"
+
+**What the sources do NOT say (not inferred):**
+- **Zone differences / depth:** The current-season sources above state the recreational trap restriction applies **uniformly to Zones 1–5**; I found **no recreational depth restriction** for hoop nets or snares. The "30-fathom Depth Constraint" appearing on the RAMP page refers to the **commercial** fishery in Zones 1–2 (earlier 2026 assessments), not recreational gear in our zone.
+- **Statutory wording tension:** §29.80(e) calls loop traps "crab traps" ("Crab traps, including crab loop traps…"), while CDFW's 2026–27 announcements explicitly say crab snares/**loop traps** are **allowed** during the restriction. CDFW's public statements are explicit; I did not find a regulation sentence that resolves the definitional overlap. Engineers should follow CDFW's explicit announcement wording and link to it, and flag for human/legal review.
+- **PDF quote caveat:** quote 4 comes from extracted PDF text (table layout garbled); verify against the PDF before copying verbatim into UI.
+- **Pier crabbing, rock crab under restriction:** not addressed in these sources for this restriction.
+
 **License:** https://wildlife.ca.gov/Licensing/Fishing
 
 ### B3. Crabbing tides / currents / moon
@@ -627,6 +676,9 @@ Orientation = **approximate direction the shore faces toward open water** (degre
 | NOAA Solar Calculator REST | **None** — JS page only |
 | Rock crab / hoop-net full §29.80 text | Partial excerpts quoted; full section is long — keep LII link |
 | 2026–27 crab trap / DA zones | Live as of Nov 19 notes above — **re-check CDFW in-season page before every release** |
+| Hoop-net per-person count during trap restriction | CDFW hoop-net summary says both “unlimited” and “two … nets … (including hoop nets)”; **unreconciled** — don't hard-code a number |
+| Loop traps/snares vs “crab traps” wording | CDFW announcements say allowed; §29.80(e) groups loop traps with “crab traps” — **no reconciling sentence found** |
+| Zone 3 mapping for our coast | Derived from CDFW latitude boundaries (Zone 3: 38°46.125′→37°11′ N); §132.8(a)(7) not fetched |
 | EONET “open” wildfires | May include stale events |
 | CDPH TLS | Certificate issues from some runtimes |
 | Real-time Golden Gate current meter | Not in `type=currents` region list today |
