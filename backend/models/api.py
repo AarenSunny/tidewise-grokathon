@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from backend.models.common import Activity
+from backend.models.common import Activity, require_aware
 from backend.models.intent import QueryIntent
 from backend.models.scoring import SpotRecommendation
 from backend.models.sources import AdapterHealth
@@ -38,10 +38,20 @@ class RecommendResponse(BaseModel):
     end: Optional[datetime] = None
     recommendations: list[SpotRecommendation] = Field(default_factory=list)
     health: list[AdapterHealth] = Field(default_factory=list)
+    note: Optional[str] = None
+    # Nearby distances when lat/lon provided
+    distances_km: dict[str, float] = Field(default_factory=dict)
+
+    @field_validator("start", "end", mode="after")
+    @classmethod
+    def _aware(cls, v: Optional[datetime]) -> Optional[datetime]:
+        if v is None:
+            return None
+        return require_aware(v)
 
 
 class HealthResponse(BaseModel):
-    status: str  # ok | degraded | down
+    status: str  # ok | degraded | down | unknown
     adapters: list[AdapterHealth] = Field(default_factory=list)
     checked_at: datetime
 

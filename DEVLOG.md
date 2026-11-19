@@ -89,3 +89,47 @@ Judges: this log records decisions, bugs, live-data surprises, review triage, an
 
 ### Commits
 - `0d08bf3` / `0528875` build(phase2) probes + session export
+
+---
+
+## Phase 3 — Adapters WIP (2026-11-19)
+
+Work branched to `phase3-wip` mid-phase so cloud agents can split remaining work.
+
+### What was built (WIP)
+- Review1 model fixes: `GateResult` forbids `passed=True`+`cannot_confirm=True`; `ScoredWindow.eligible` default `False`; tz-aware validators on SourceResult/intent/scoring.
+- `SourceResult.observed_at` + base adapter freshness (`max_age` / `max_stale_age`), stable cache keys, typed cache rehydrate, overall deadline, retry classification, HealthMonitor wiring.
+- `MemoryTTLCache` size cap + max stale age.
+- Adapters: CO-OPS tides/currents, ERDDAP chl+SST (mirror/dataset fallback), C-HARM (optional/down-safe), CDPH ArcGIS, NDBC, EPA UV, BeachWatch (stale⇒cannot_confirm), optional daylight sunrise API.
+- `backend/seasons.py` + `config/seasons.yaml` from **DATA_SOURCES.md @ ed08814** (zone-based gear; SF Bay Dungeness hard-fail; trap restricted until 2027-01-01; hoop/snare/hand allowed with snare/loop caveat).
+- `region.yaml` filled from Part B spots + station IDs; `GET /recommend` lat/lon nearby selection.
+- Unit tests + fixtures (see pytest status on branch).
+
+### Reviewer findings triage (REVIEW_1.md)
+| Finding | Decision | Reason |
+| --- | --- | --- |
+| #1 models (GateResult / eligible default) | **fix** | Done in models (not features.py / ActivityConfig — deferred to scorers agent) |
+| #1 YAML ActivityConfig / HourlyFeatures gates | **defer** | scorers/features cloud agent owns |
+| #2 observed_at freshness | **fix** | SourceResult + base `_apply_freshness` |
+| #3 stable cache keys | **fix** | station/product/day keys; quantized hour default |
+| #4 max_stale_age + cache eviction | **fix** | MemoryTTLCache max_entries + get_stale age |
+| #5 cache type round-trip | **fix** | data_type + rehydrate via payload_model |
+| #6 timeouts / overall deadline | **fix** | httpx timeouts + asyncio.wait_for overall |
+| #7 retry classification | **fix** (partial) | PermanentFetchError fail-fast; transient retry + jitter |
+| #8 validation layer | **fix** (partial) | `backend/validation.py` + per-adapter validate; features.py constraints deferred |
+| #9 HealthMonitor wiring | **fix** | registry + debug fail/reset on known sources |
+| #10 tz / CO-OPS gmt | **fix** (partial) | aware validators; CO-OPS `time_zone=gmt` |
+| #11 activity gate YAML gaps | **defer** | scorers agent; Spot.no_take + dungeness_prohibited added |
+| #12 region placeholders | **fix** | region.yaml rewritten from DATA_SOURCES Part B |
+
+### Season / gear source
+Encoded **only** from `DATA_SOURCES.md` @ **ed08814** (not from chat notes). Zone 3 lat bounds; trap restriction; hoop nets / snares / hand allowed with §29.80(e) caveat on loop traps/snares; SF Bay/San Pablo Dungeness = gate **fail**.
+
+### Real-world data notes
+- CoastWatch ERDDAP 404/503 earlier today → adapters try pfeg + coastwatch.noaa.gov + alternate datasets; never invent chl/SST/C-HARM.
+- C-HARM unpublished afternoon → optional adapter returns down/cannot_confirm.
+- BeachWatch bacteria months-stale → `cannot_confirm` for swim gates.
+- EPA UV only (not POWER UV_INDEX).
+
+### How Grok Bot helped
+- Phase 3 plan, review triage, adapter scaffold, season gear encoding from research commit, WIP branch handoff.

@@ -1,38 +1,209 @@
-# San Francisco Bay Area coast — extend by adding spots, not code.
+# Spots from DATA_SOURCES.md Part B6 + station IDs from Part A (review1-#12).
 id: sf_bay_coast
 name: San Francisco Bay Area coast
-bbox: [-123.0, 37.2, -121.7, 38.0]  # min_lon, min_lat, max_lon, max_lat
+bbox: [-123.2, 37.1, -122.0, 38.4]
 timezone: America/Los_Angeles
-# Spot list will be filled from DATA_SOURCES.md in Phase 2+.
-# Placeholder IDs so the schema and /spots endpoint are exercisable now.
 spots:
-  - id: half_moon_bay
-    name: Half Moon Bay
-    lat: 37.4636
-    lon: -122.4286
-    shoreline_orientation_deg: 270
-    activities: [clamming, crabbing, swimming, sailing]
-    tide_station_id: null
-    buoy_ids: []
-    nws_grid: null
-    notes: "Placeholder — station IDs from DATA_SOURCES.md in Phase 2"
-  - id: pacifica
-    name: Pacifica
-    lat: 37.6138
-    lon: -122.4869
-    shoreline_orientation_deg: 270
-    activities: [clamming, swimming]
-    tide_station_id: null
-    buoy_ids: []
-    nws_grid: null
-    notes: "Placeholder — station IDs from DATA_SOURCES.md in Phase 2"
-  - id: sf_bay
-    name: San Francisco Bay
-    lat: 37.8076
-    lon: -122.4156
+  - id: pillar_point_harbor
+    name: Pillar Point Harbor / Princeton
+    lat: 37.502
+    lon: -122.487
     shoreline_orientation_deg: 180
-    activities: [sailing, crabbing, swimming]
-    tide_station_id: null
+    activities: [clamming, crabbing, sailing]
+    tide_station_id: "9414131"
+    current_station_id: "SFB1201"
+    buoy_ids: ["46012", "46237"]
+    nws_grid: "MTR/80,94"
+    nws_zone: "PZZ545"
+    county: "San Mateo County"
+    no_take: false
+    notes: "Check SMCA boundaries before take; harbor flats for cockles"
+
+  - id: half_moon_bay_state_beach
+    name: Half Moon Bay State Beach (Miramar–Francis)
+    lat: 37.473
+    lon: -122.435
+    shoreline_orientation_deg: 270
+    activities: [swimming]
+    tide_station_id: "9414131"
+    buoy_ids: ["46012"]
+    nws_grid: "MTR/80,94"
+    nws_zone: "PZZ545"
+    county: "San Mateo County"
+    notes: "Exposed surf — poor clam habitat"
+
+  - id: montara_fitzgerald
+    name: Montara / Fitzgerald (viewing)
+    lat: 37.524
+    lon: -122.517
+    shoreline_orientation_deg: 270
+    activities: [swimming]
+    tide_station_id: "9414131"
+    buoy_ids: ["46012"]
+    nws_grid: "MTR/80,94"
+    nws_zone: "PZZ545"
+    county: "San Mateo County"
+    no_take: true
+    notes: "SMR — no take; tidepool viewing only"
+
+  - id: pacifica_linda_mar
+    name: Pacifica State Beach (Linda Mar)
+    lat: 37.600
+    lon: -122.505
+    shoreline_orientation_deg: 250
+    activities: [swimming]
+    tide_station_id: "9414290"
+    buoy_ids: ["46026", "46237"]
+    nws_grid: "MTR/81,99"
+    nws_zone: "CAZ509"
+    county: "San Mateo County"
+    notes: "BeachWatch stations present; surf swim"
+
+  - id: rockaway_pacifica
+    name: Rockaway Beach (Pacifica)
+    lat: 37.609
+    lon: -122.499
+    shoreline_orientation_deg: 260
+    activities: [swimming]
+    tide_station_id: "9414290"
+    buoy_ids: ["46026"]
+    nws_grid: "MTR/81,99"
+    nws_zone: "CAZ509"
+    county: "San Mateo County"
+
+  - id: ocean_beach_sf
+    name: Ocean Beach (SF)
+    lat: 37.759
+    lon: -122.512
+    shoreline_orientation_deg: 270
+    activities: [swimming]
+    tide_station_id: "9414275"
+    buoy_ids: ["46026", "46237"]
+    nws_grid: "MTR/83,107"
+    nws_zone: "PZZ545"
+    county: "San Francisco County"
+    notes: "Strong rip / heavy surf common; experts"
+
+  - id: baker_beach
+    name: Baker Beach
+    lat: 37.793
+    lon: -122.484
+    shoreline_orientation_deg: 250
+    activities: [swimming]
+    tide_station_id: "9414290"
+    buoy_ids: ["46026"]
+    nws_grid: "MTR/83,107"
+    nws_zone: "PZZ530"
+    county: "San Francisco County"
+    notes: "Currents; Gate proximity"
+
+  - id: crissy_field
+    name: Crissy Field / SF waterfront
+    lat: 37.804
+    lon: -122.466
+    shoreline_orientation_deg: 10
+    activities: [sailing]
+    tide_station_id: "9414290"
+    current_station_id: "SFB1201"
+    buoy_ids: ["FTPC1"]
+    nws_grid: "MTR/83,107"
+    nws_zone: "PZZ530"
+    county: "San Francisco County"
+    dungeness_prohibited: true
+    notes: "Bay side — no Dungeness (§29.85(b)(1))"
+
+  - id: aquatic_park
+    name: Aquatic Park / Muni Pier
+    lat: 37.807
+    lon: -122.424
+    shoreline_orientation_deg: 350
+    activities: [swimming]
+    tide_station_id: "9414290"
+    buoy_ids: ["PXOC1"]
+    nws_grid: "MTR/83,107"
+    nws_zone: "PZZ530"
+    county: "San Francisco County"
+    dungeness_prohibited: true
+    notes: "Protected cove; bay — no Dungeness"
+
+  - id: angel_island_ayala
+    name: Angel Island (Ayala Cove)
+    lat: 37.868
+    lon: -122.435
+    shoreline_orientation_deg: 320
+    activities: [sailing]
+    tide_station_id: "9414817"
+    current_station_id: "SFB1201"
     buoy_ids: []
-    nws_grid: null
-    notes: "Placeholder — station IDs from DATA_SOURCES.md in Phase 2"
+    nws_grid: "MTR/83,107"
+    nws_zone: "PZZ530"
+    county: "Marin County"
+    dungeness_prohibited: true
+    notes: "Bay — no Dungeness; ferry access"
+
+  - id: berkeley_marina
+    name: Berkeley Marina / Cesar Chavez Park
+    lat: 37.863
+    lon: -122.318
+    shoreline_orientation_deg: 270
+    activities: [sailing]
+    tide_station_id: "9414816"
+    buoy_ids: []
+    nws_grid: "MTR/88,105"
+    nws_zone: "PZZ530"
+    county: "Alameda County"
+    dungeness_prohibited: true
+    notes: "Bay — no Dungeness"
+
+  - id: richardson_sausalito
+    name: Richardson Bay / Sausalito
+    lat: 37.856
+    lon: -122.478
+    shoreline_orientation_deg: 90
+    activities: [sailing]
+    tide_station_id: "9414290"
+    buoy_ids: []
+    nws_grid: "MTR/83,107"
+    nws_zone: "PZZ530"
+    county: "Marin County"
+    dungeness_prohibited: true
+    notes: "More protected; bay — no Dungeness"
+
+  - id: drakes_beach
+    name: Drakes Beach (Point Reyes)
+    lat: 38.027
+    lon: -122.964
+    shoreline_orientation_deg: 180
+    activities: [clamming, swimming]
+    tide_station_id: "9415020"
+    buoy_ids: ["46013", "46214"]
+    nws_grid: "MTR/70,110"
+    nws_zone: "PZZ540"
+    county: "Marin County"
+    notes: "Check CDPH + NPS rules"
+
+  - id: tomales_inverness
+    name: Tomales Bay (Inverness shore)
+    lat: 38.113
+    lon: -122.870
+    shoreline_orientation_deg: 90
+    activities: [clamming, sailing]
+    tide_station_id: "9415228"
+    buoy_ids: []
+    nws_grid: "MTR/70,110"
+    nws_zone: "PZZ540"
+    county: "Marin County"
+    notes: "Classic cockle area"
+
+  - id: bodega_harbor
+    name: Bodega Harbor mouth
+    lat: 38.309
+    lon: -123.058
+    shoreline_orientation_deg: 200
+    activities: [clamming, crabbing, sailing]
+    tide_station_id: "9415020"
+    buoy_ids: ["46013"]
+    nws_grid: "MTR/65,120"
+    nws_zone: "PZZ540"
+    county: "Sonoma County"
+    notes: "Just N of core box but relevant"
