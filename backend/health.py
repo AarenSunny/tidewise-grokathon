@@ -7,6 +7,7 @@ from typing import Optional
 
 from backend.models.common import SourceStatus
 from backend.models.sources import AdapterHealth
+from backend.redact import redact
 
 
 class HealthMonitor:
@@ -51,7 +52,7 @@ class HealthMonitor:
         h = self.ensure(source_name)
         h.status = SourceStatus.down
         h.last_error_at = datetime.now(timezone.utc)
-        h.last_error = error
+        h.last_error = redact(error)
         h.consecutive_failures += 1
 
     def set_forced_down(self, source_name: str, forced: bool) -> None:
@@ -60,7 +61,6 @@ class HealthMonitor:
         if forced:
             h.status = SourceStatus.down
         else:
-            # Restore to unknown until next real report (review1-#9)
             h.status = SourceStatus.unknown
 
     def snapshot(self) -> list[AdapterHealth]:
