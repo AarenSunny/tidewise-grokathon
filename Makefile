@@ -17,4 +17,4 @@ test:
 	.venv/bin/pytest -q
 
 probe:
-	@echo "Probe scripts land in Phase 2 (scripts/probes/)"
+	.venv/bin/python scripts/probes/run_all.py

@@ -49,3 +49,43 @@ Judges: this log records decisions, bugs, live-data surprises, review triage, an
 
 ### Commits
 - `cdb01b5` build(phase1): scaffold FastAPI architecture and pydantic models
+
+---
+
+## Phase 2 — Probe (2026-11-19)
+
+### What was built
+- Read `DATA_SOURCES.md` (research commit `f50ae9d`).
+- Added build-owned live probe runner `scripts/probes/run_all.py` covering CO-OPS, NDBC, NWS, ERDDAP (MUR/chl/C-HARM/anom), CDPH ArcGIS + TLS check, BeachWatch CKAN, FIRMS/EONET, EPA UV + NASA POWER.
+- Wrote `scripts/probes/REPORT.md` with response shapes, samples, and discrepancies.
+- Did **not** edit `DATA_SOURCES.md` or `scripts/research_probes/` (research-owned). Left frontend map UI alone (other agent).
+
+### Key decisions
+| Decision | Alternatives | Why |
+| --- | --- | --- |
+| New Python runner in `scripts/probes/` | Re-run research bash only | Need structured shapes for Phase 3 adapters; keep research scripts untouched |
+| Commit REPORT.md, gitignore `out/` | Commit raw dumps | Keep repo small; shapes matter more than full payloads |
+
+### Bugs found
+- Report writer `ValueError` on f-string `{r.latency_ms:.0f if ...}` — invalid format spec. Fixed with conditional expression outside format spec.
+- Initial ERDDAP failures looked like bad quoting; **root cause was not quoting** — dataset/info URLs 404'd and then ERDDAP went 503.
+
+### Real-world data issues
+- **CoastWatch ERDDAP outage/partial failure** same day DATA_SOURCES verified it: first chl/C-HARM 404 while MUR 200; then global 503. Documented in REPORT timeline. Trust live call; note discrepancy vs DATA_SOURCES.
+- **NDBC 46239** HTTP 200 but data stamped **2026-10-25** (~25 days stale) — confirms research warning; adapters must check row time.
+- **NDBC `MM` sentinels** present on active buoys (DPD etc.).
+- **CO-OPS** no `water_temperature` at 9414290 — confirmed error JSON.
+- **NASA POWER** `ALLSKY_SFC_UV_INDEX` all `-999` — use EPA UV.
+- **CDPH** HTML TLS verify failed in this runtime; ArcGIS FeatureServer OK. Prefer ArcGIS.
+- **CDPH county symbols false discrepancy:** probe matched `San Francisco` but ArcGIS returns `San Francisco County`. Root cause: overly strict string match. Fixed in probe.
+- Today's SF lows only **+1.0 / +1.7 ft MLLW** — no minus tide; clamming gates will correctly fail on tide today.
+
+### Reviewer findings
+- N/A
+
+### How Grok Bot helped
+- Phase 2 plan/tradeoffs, live debugging of ERDDAP 404→503, probe runner + REPORT.
+- Export: `grok-sessions/build/` (this session).
+
+### Commits
+- (filled after commit)

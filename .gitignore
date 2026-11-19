@@ -49,3 +49,7 @@ pnpm-debug.log*
 # Local exports that may contain personal information
 private/
 exports/raw/
+
+# Probe raw dumps
+scripts/probes/out/
+
