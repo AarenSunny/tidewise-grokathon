@@ -1,0 +1,23 @@
+# Render Blueprint for the TideWise FastAPI backend (no database, free plan).
+# Deploys automatically on every push to main.
+services:
+  - type: web
+    name: tidewise-api
+    runtime: python
+    plan: free
+    branch: main
+    autoDeploy: true
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: NWS_USER_AGENT
+        value: TideWise/0.1 (https://github.com/AarenSunny/tidewise-grokathon)
+      - key: XAI_API_KEY
+        sync: false
