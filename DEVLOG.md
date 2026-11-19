@@ -47,4 +47,4 @@ Judges: this log records decisions, bugs, live-data surprises, review triage, an
 - Export: see `grok-sessions/build/` after commit.
 
 ### Commits
-- (filled after push)
+- `cdb01b5` build(phase1): scaffold FastAPI architecture and pydantic models
