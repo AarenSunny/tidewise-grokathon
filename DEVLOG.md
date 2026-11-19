@@ -133,3 +133,51 @@ Encoded **only** from `DATA_SOURCES.md` @ **ed08814** (not from chat notes). Zon
 
 ### How Grok Bot helped
 - Phase 3 plan, review triage, adapter scaffold, season gear encoding from research commit, WIP branch handoff.
+
+---
+
+## Phase 3 — Core track (`phase3-core`, 2026-11-19)
+
+Branched from rebased `phase3-wip` onto `origin/main`. Cloud agents A/B own concrete adapters; this track owns shared interfaces, orchestrator, API wiring, and review fixes.
+
+### Root cause: `test_max_stale_age_returns_down`
+**Test bug + brittle rehydrate path.** The test seeded a *fresh* TTL cache entry (`timedelta(hours=1)`) with `data={"x": 1}` (not a `TidePayload`). `fetch()` hit the cache_hit path and `payload_model.model_validate` raised `ValidationError` before `get_stale`/`max_stale_age` ran.  
+**Fix:** (1) `_rehydrate` returns `None` on validation failure (treat as miss); (2) `get_stale` uses `age >= max_stale_age` so `0` never serves stale; (3) test expires TTL (`timedelta(0)`), uses a Fake adapter + valid payload shape.
+
+### Interface changes during split (additive only)
+| Change | Compat |
+| --- | --- |
+| `SourceResult.observed_at`, `data_type` | additive fields |
+| `SourceAdapter.max_age`, `max_stale_age`, `safety_critical`, `payload_model`, `overall_deadline_s` | additive class attrs |
+| `TransientFetchError.retry_after_s` | additive kw-only; positional message unchanged |
+| `_rehydrate` → `Optional[SourceResult]` | internal; callers updated in base only |
+| `MemoryTTLCache` deep-copy on get/set; `get_stale` uses `>=` | behavior tightened; signature unchanged |
+| `HealthMonitor` initial `unknown`; `register` / `is_forced_down` / redact on failure | additive |
+| `Spot.no_take`, `dungeness_prohibited`, id/lat/lon validators | additive |
+| `RecommendResponse.note`, `distances_km` | additive |
+| `QueryRequest.text` max_length=2000 | tighter validation |
+| `SourceStatus.unknown` | additive enum member |
+| `Orchestrator` real implementation (was NotImplementedError stub) | new public API |
+| `backend/redact.py`, `backend/settings.py` | new modules |
+
+### Reviewer findings triage (REVIEW_1)
+| # | Decision | Notes |
+| --- | --- | --- |
+| #1 models | **fix** (partial) | GateResult / eligible default; ActivityConfig/features deferred to scorers |
+| #2–#6 | **fix** | observed_at, cache keys, max_stale, rehydrate, deadlines (prior WIP + core) |
+| #7 | **fix** | Permanent fail-fast; Retry-After on 429; jitter |
+| #8 | **fix** (partial) | `validation.py` helpers; features.py Field constraints deferred |
+| #9 | **fix** | HealthMonitor wired via registry |
+| #10 | **fix** (partial) | tz-aware models; CO-OPS gmt in A’s adapter |
+| #11 | **defer** | scorers agent |
+| #12 | **fix** | region.yaml filled earlier; Spot.id validator |
+| #13 | **fix** | `redact()` on logs/notes/health |
+| #14 | **fix** | single-flight + orchestrator gather/deadline/semaphore |
+| #15 | **fix** | DEBUG default false; CORS allowlist from env; settings load |
+| #16 | **fix** | core unit tests added |
+| #17 | **won't fix** | email in git history needs force-push; owner decision |
+| #18 | **defer** | B owns CDPH adapter |
+| #19 | **fix** (partial) | monotonic time, note cap, copy-on-read, QueryRequest cap |
+
+### Tests
+44 passed (pytest). Ruff not previously configured; added minimal `[tool.ruff]` excluding A/B adapter paths.

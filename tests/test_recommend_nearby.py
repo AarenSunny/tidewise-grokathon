@@ -1,11 +1,17 @@
 """GET /recommend lat/lon nearby selection."""
 
 from fastapi.testclient import TestClient
+import pytest
 
-from backend.api import app
+from backend import api as api_mod
 
 
-client = TestClient(app)
+@pytest.fixture(autouse=True)
+def _no_live_fanout(monkeypatch):
+    monkeypatch.setattr(api_mod.orchestrator, "sources", ())
+
+
+client = TestClient(api_mod.app)
 
 
 def test_recommend_nearby_returns_spot_ids():
@@ -18,7 +24,7 @@ def test_recommend_nearby_returns_spot_ids():
     assert body["activity"] == "clamming"
     assert len(body["spot_ids"]) >= 1
     assert "pillar_point_harbor" in body["spot_ids"]
-    assert body["recommendations"]  # stubs present
+    assert body["recommendations"]
     assert body["note"]
 
 
@@ -28,7 +34,6 @@ def test_recommend_bay_spot_no_dungeness_activity_filter():
         params={"activity": "crabbing", "lat": 37.5, "lon": -122.48},
     )
     assert r.status_code == 200
-    # Bay-only sailing spots should not appear for crabbing
     assert "crissy_field" not in r.json()["spot_ids"]
 
 

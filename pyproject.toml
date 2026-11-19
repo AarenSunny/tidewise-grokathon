@@ -8,3 +8,28 @@ description = "TideWise — water recreation recommendations from live Earth-obs
 asyncio_mode = "auto"
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [
+  "backend/adapters/coops.py",
+  "backend/adapters/ndbc.py",
+  "backend/adapters/erddap.py",
+  "backend/adapters/charm.py",
+  "backend/adapters/cdph.py",
+  "backend/adapters/beachwatch.py",
+  "backend/adapters/epa_uv.py",
+  "backend/adapters/daylight.py",
+  "backend/seasons.py",
+  "backend/config/seasons.yaml",
+  "backend/geo",
+  "backend/features",
+  "backend/scorers",
+  "backend/models/features.py",
+  "scripts",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]

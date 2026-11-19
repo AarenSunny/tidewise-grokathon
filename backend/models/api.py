@@ -15,7 +15,7 @@ from backend.models.spots import Spot
 
 
 class QueryRequest(BaseModel):
-    text: str = Field(min_length=1)
+    text: str = Field(min_length=1, max_length=2000)
 
 
 class ClarifyingQuestion(BaseModel):
@@ -39,7 +39,6 @@ class RecommendResponse(BaseModel):
     recommendations: list[SpotRecommendation] = Field(default_factory=list)
     health: list[AdapterHealth] = Field(default_factory=list)
     note: Optional[str] = None
-    # Nearby distances when lat/lon provided
     distances_km: dict[str, float] = Field(default_factory=dict)
 
     @field_validator("start", "end", mode="after")
