@@ -1,4 +1,4 @@
-"""Shared sentinel / range helpers for adapters (review1-#8 partial)."""
+"""Shared sentinel / range helpers for adapters (review1-#8)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ NDBC_MISSING = {"MM", "mm", "999", "99.0", "999.0", "9999", "9999.0"}
 POWER_FILL = {-999, -999.0}
 
 # ERDDAP common fills
-ERDDAP_FILL_HINTS = {-99999, -99999.0, -7.768}  # MUR analysed_sst fill approx
+ERDDAP_FILL_HINTS = {-99999, -99999.0, -7.768}
 
 
 def is_missing_ndbc(token: Any) -> bool:
@@ -50,3 +50,15 @@ def in_range(v: Optional[float], lo: float, hi: float) -> Optional[float]:
     if v < lo or v > hi:
         return None
     return v
+
+
+def ms_to_knots(ms: Optional[float]) -> Optional[float]:
+    if ms is None:
+        return None
+    return ms * 1.94384
+
+
+def c_to_f(c: Optional[float]) -> Optional[float]:
+    if c is None:
+        return None
+    return c * 9.0 / 5.0 + 32.0
