@@ -13,8 +13,13 @@ class CacheBackend(ABC):
         """Return value if present and not expired."""
 
     @abstractmethod
-    async def get_stale(self, key: str) -> Optional[Any]:
-        """Return value even if expired (for last-known-good)."""
+    async def get_stale(
+        self,
+        key: str,
+        *,
+        max_stale_age: Optional[timedelta] = None,
+    ) -> Optional[Any]:
+        """Return value even if expired (for last-known-good), subject to max age."""
 
     @abstractmethod
     async def set(self, key: str, value: Any, ttl: timedelta) -> None:
