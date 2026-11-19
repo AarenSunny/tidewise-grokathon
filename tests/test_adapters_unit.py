@@ -208,28 +208,43 @@ async def test_observation_age_marks_stale():
 
 @pytest.mark.asyncio
 async def test_max_stale_age_returns_down(monkeypatch):
+    """review1-#4: a last-known-good older than max_stale_age is not served.
+
+    Live failure then returns down (no_stale_cache), not a stale hit.
+    """
     cache = MemoryTTLCache(default_max_stale_age=timedelta(seconds=1))
+    # Cache stamps stored_at/expires_at from its own clock. Freeze that clock
+    # so we can age the entry past both the TTL and max_stale_age.
+    clock = {"now": datetime(2026, 11, 19, 12, 0, tzinfo=timezone.utc)}
+    monkeypatch.setattr(cache, "_now", lambda: clock["now"])
+
     adapter = CoopsTideAdapter(cache)
     adapter.max_stale_age = timedelta(seconds=0)
+    adapter.max_retries = 1  # live call is forced down; skip backoff sleeps
     spot = _spot()
     start = datetime(2026, 11, 19, tzinfo=timezone.utc)
-    # Seed cache with old entry
     from backend.models.sources import SourceResult
 
+    # Valid payload so a wrongly served stale hit would rehydrate as status=stale
+    # (observed_at is unset, so freshness will not also demote it to down).
+    payload = TidePayload(station_id="9414131", product="predictions_hilo", points=[])
     old = SourceResult(
-        data={"x": 1},
+        data=payload,
         fetched_at=datetime(2026, 11, 1, tzinfo=timezone.utc),
         valid_until=datetime(2026, 11, 1, tzinfo=timezone.utc),
         status=SourceStatus.ok,
         source_name=adapter.name,
     )
     key = adapter.cache_key(spot, start, start + timedelta(days=1))
-    await cache.set(key, old.model_dump(mode="json"), timedelta(hours=1))
-    # Force live fail
+    await cache.set(key, adapter._serialize_for_cache(old), timedelta(hours=1))
+    # Past the 1h TTL (get misses) and past max_stale_age=0 (get_stale refuses).
+    clock["now"] = clock["now"] + timedelta(hours=2)
+
     async def boom(*a, **k):
         raise ConnectionError("down")
 
     adapter._fetch_live = boom  # type: ignore
-    # Expire TTL so get() misses but get_stale might hit — max_stale_age=0 ⇒ None
     result = await adapter.fetch(spot, start, start + timedelta(days=1))
     assert result.status == SourceStatus.down
+    assert any("no_stale_cache" in n for n in result.notes)
+    assert not any("serving_stale" in n for n in result.notes)
