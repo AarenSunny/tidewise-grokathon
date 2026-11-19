@@ -1,0 +1,38 @@
+# San Francisco Bay Area coast — extend by adding spots, not code.
+id: sf_bay_coast
+name: San Francisco Bay Area coast
+bbox: [-123.0, 37.2, -121.7, 38.0]  # min_lon, min_lat, max_lon, max_lat
+timezone: America/Los_Angeles
+# Spot list will be filled from DATA_SOURCES.md in Phase 2+.
+# Placeholder IDs so the schema and /spots endpoint are exercisable now.
+spots:
+  - id: half_moon_bay
+    name: Half Moon Bay
+    lat: 37.4636
+    lon: -122.4286
+    shoreline_orientation_deg: 270
+    activities: [clamming, crabbing, swimming, sailing]
+    tide_station_id: null
+    buoy_ids: []
+    nws_grid: null
+    notes: "Placeholder — station IDs from DATA_SOURCES.md in Phase 2"
+  - id: pacifica
+    name: Pacifica
+    lat: 37.6138
+    lon: -122.4869
+    shoreline_orientation_deg: 270
+    activities: [clamming, swimming]
+    tide_station_id: null
+    buoy_ids: []
+    nws_grid: null
+    notes: "Placeholder — station IDs from DATA_SOURCES.md in Phase 2"
+  - id: sf_bay
+    name: San Francisco Bay
+    lat: 37.8076
+    lon: -122.4156
+    shoreline_orientation_deg: 180
+    activities: [sailing, crabbing, swimming]
+    tide_station_id: null
+    buoy_ids: []
+    nws_grid: null
+    notes: "Placeholder — station IDs from DATA_SOURCES.md in Phase 2"

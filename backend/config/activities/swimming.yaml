@@ -1,0 +1,19 @@
+activity: swimming
+required_sources:
+  - alerts_bacteria
+  - nws_marine
+  - satellite_chl
+gates:
+  - name: no_bacteria_advisory
+    rule: bacteria_advisory != true
+    missing: cannot_confirm
+  - name: rip_current_not_high
+    rule: rip_current_risk != high
+    missing: cannot_confirm
+  - name: no_bloom
+    rule: chl_bloom_flag != true
+    missing: cannot_confirm
+weights:
+  water_temp: 0.4
+  wave_height: 0.35
+  uv: 0.25

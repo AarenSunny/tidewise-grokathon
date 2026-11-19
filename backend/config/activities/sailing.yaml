@@ -1,0 +1,16 @@
+activity: sailing
+required_sources:
+  - nws_alerts
+  - nws_forecast
+  - ndbc_buoy
+gates:
+  - name: no_small_craft_advisory
+    rule: small_craft_advisory != true
+    missing: cannot_confirm
+  - name: no_thunderstorm
+    rule: thunderstorm_alert != true
+    missing: cannot_confirm
+weights:
+  wind_ideal_8_18kt: 0.5
+  low_gust_spread: 0.3
+  waves: 0.2

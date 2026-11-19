@@ -1,0 +1,12 @@
+activity: crabbing
+required_sources:
+  - coops_tides
+  - coops_currents
+gates:
+  - name: season_open
+    rule: season_open == true
+    missing: cannot_confirm
+weights:
+  slack_closeness: 0.5
+  moderate_current: 0.3
+  moon_phase: 0.2

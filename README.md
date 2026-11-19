@@ -1,124 +1,105 @@
-# Tidewise
+# TideWise
 
-Tidewise recommends **where and when to do water recreation** using live public Earth-observation and environmental data. It supports clamming, crabbing, swimming, fishing, boating, kite sports, parasailing, and sailing.
+Water recreation recommendations for the **San Francisco Bay Area coast** (Half Moon Bay, Pacifica, SF Bay): clamming, crabbing, swimming, and sailing.
 
-The core product is not a chart on top of one API. It converts multiple feeds into an activity-specific recommendation, explains the factors behind that recommendation, exposes data freshness and uncertainty, and degrades safely when a source is incomplete or unavailable.
+TideWise combines **live NASA/NOAA Earth-observation data** with tide, buoy, and weather feeds. It is not a chart on top of one API — it validates feeds, derives signals, applies hard safety gates, scores time windows, and explains the result in plain English (with confidence and degraded-source callouts).
 
-> **Safety:** This project is a planning aid, not an emergency, navigation, legal, health, or regulatory authority. Users must verify local closures, licenses, weather alerts, marine conditions, and official guidance before entering the water.
+> **Safety:** Planning aid only. Verify local closures, licenses, weather alerts, and official guidance before entering the water. **Missing safety data never counts as safe.**
 
-## Product flow
+Hackathon track: **Make space data useful.**
 
-1. The user chooses an activity, location or search area, and time window.
-2. The service resolves nearby observation/forecast stations and retrieves current public data.
-3. Source adapters normalize units, timestamps, coordinates, quality flags, and freshness.
-4. A scoring engine evaluates hard safety gates and activity-specific preferences.
-5. The API returns ranked place/time windows with factor-level explanations, provenance, freshness, and confidence.
-6. The client presents recommendations and clearly labels unavailable or stale inputs.
+## Who it helps
 
-## Intended architecture
+Coastal recreators who need a trustworthy “where and when” answer that accounts for tides, marine weather, water quality, and satellite SST/chlorophyll — and who need to know when the answer is uncertain because a feed is down.
 
-```text
-Public APIs
-  -> source adapters
-  -> validation + unit/time normalization
-  -> short-lived cache + last-known-good records
-  -> geospatial/time-window join
-  -> safety gates + activity scoring
-  -> recommendation API
-  -> map/list UI with explanations and source timestamps
+## Architecture
+
+```mermaid
+flowchart LR
+  User --> API
+  API --> IntentBot
+  IntentBot --> Orchestrator
+  Orchestrator --> Adapters
+  Adapters --> FeatureEngine
+  FeatureEngine --> Scorers
+  Scorers --> ExplainerBot
+  ExplainerBot --> API
+  Adapters --> HealthMonitor
+  HealthMonitor --> API
 ```
 
-Suggested repository boundaries once implementation begins:
+**Bot management system**
+
+1. **IntentBot (Grok)** — user text → typed `QueryIntent` (or a clarifying question).
+2. **Orchestrator** — activity config → concurrent adapters (timeouts) → pipeline.
+3. **Source adapters** — shared interface: timeout, retry/backoff, TTL cache, sentinel validation, fallback chain, stale-on-failure.
+4. **FeatureEngine** — hourly grid per spot (tide phase, slack/minus windows, daylight, moon, wind vs shoreline, waves, SST anomaly, bloom flag, alerts).
+5. **ActivityScorers** — YAML gates + weights; hard gates first; 0–100 score; confidence from freshness.
+6. **ExplainerBot (Grok)** — grounded plain-English recommendation (no invented numbers).
+7. **HealthMonitor** — per-adapter status → `GET /health` + UI panel.
+
+## Data sources
+
+See [`DATA_SOURCES.md`](DATA_SOURCES.md) (research session). Adapters and probes are built from that document; if a live call disagrees, we trust the live call and note it here and in `DEVLOG.md`.
+
+## Robustness
+
+- Per-source TTL cache; serve **stale** with status flagged when live fetch fails.
+- Validation rejects NDBC sentinels / impossible ranges.
+- Fallback chains (nearest buoy → next → NWS grid → unknown).
+- **Failure injection:** `POST /debug/fail/{source}` when `DEBUG=true`.
+- App never crashes on a feed failure — degrades and says so.
+- Structured fetch logging (source, status, latency, cache hit, fallback).
+
+## Repo layout
 
 ```text
-apps/web/              user interface
-apps/api/              recommendation API
-packages/adapters/     one adapter per public data provider
-packages/scoring/      activity rules, gates, confidence, explanations
-packages/contracts/    shared schemas and API types
-tests/                 fixtures, adapter contracts, scoring and degradation tests
+backend/          FastAPI, adapters, features, scorers, bots, orchestrator
+frontend/         Vite + React + Leaflet
+scripts/probes/   Live source probes (Phase 2)
+tests/            pytest (fixtures for unit tests only; live path hits real APIs)
+grok-sessions/    research / build / review exports
+REVIEWS/          review-session findings
+DATA_SOURCES.md   research session (do not edit in build)
+DEVLOG.md         decisions, bugs, review triage
 ```
 
-## Live public data
+## How to run locally
 
-The initial U.S. data plan uses official public sources:
+```bash
+cp .env.example .env
+# set XAI_API_KEY when you reach IntentBot/ExplainerBot
 
-| Source | Intended signals | Role in recommendations |
+make install
+make dev          # API http://localhost:8000
+make frontend     # UI  http://localhost:5173
+make test
+```
+
+API surface (Phase 1 stubs return 501 for query/recommend):
+
+- `POST /query` `{ "text": "..." }`
+- `GET /recommend?activity=&spot=&start=&end=`
+- `GET /health`
+- `GET /spots`
+- `POST /debug/fail/{source}` / `POST /debug/reset` (DEBUG only)
+
+## How Grok Bot was used
+
+| Session | Role | Exports |
 | --- | --- | --- |
-| [NOAA CO-OPS Data API](https://api.tidesandcurrents.noaa.gov/api/dev) | Tide predictions, observed water level, currents, water temperature, wind and other station products | Tide-dependent access, current-sensitive boating/sailing, and coastal timing |
-| [National Weather Service API](https://www.weather.gov/documentation/services-web-api) | Hourly forecasts, observations, watches, warnings and advisories | Weather, wind, precipitation, visibility proxies, and hard hazard gates |
-| [USGS Water Data APIs](https://api.waterdata.usgs.gov/) | Recent continuous measurements, streamflow, gage height, temperature, monitoring locations and selected water-quality observations | Inland-water conditions, flow and level context, and station metadata |
-| [EPA BEACON / jurisdiction beach programs](https://www.epa.gov/beaches/find-information-about-particular-us-beach) | Submitted beach advisories, closures and monitoring context | Swimming and contact-water health gate, with jurisdiction links for verification |
+| Research | Endpoints, station IDs, quirks, thresholds, spot list → `DATA_SOURCES.md` | `grok-sessions/research/` |
+| Build | Plan, implement, debug (this track) | `grok-sessions/build/` |
+| Review | Phase reviews → `REVIEWS/` | `grok-sessions/review/` |
 
-Coverage and reporting latency vary by station and jurisdiction. Each response should retain source URL, station identifier, observed/forecast time, retrieval time, units, quality flags, and license/attribution where applicable.
+## Demo script / video / slides
 
-## Scoring and safety gates
+Placeholders — filled in Phase 8.
 
-Each candidate place/time window receives an activity-specific score. Thresholds are configuration and must be backed by cited domain guidance before production use.
+- Video: _TBD_
+- Slides: _TBD_
+- Demo script: see Phase 8 / `SUBMISSION_CHECKLIST.md`
 
-```text
-eligible = no applicable hard gate is triggered
+## Status
 
-score = weighted mean of available normalized factors
-confidence = coverage x freshness x source quality x spatial relevance
-```
-
-Example factors include tide stage, current speed, wind speed/gusts, air and water temperature, precipitation, streamflow or gage height, daylight, water-quality status, and distance from the relevant station. The response should include each factor's value, timestamp, contribution, and source so users can understand why a window ranked well or poorly.
-
-Hard gates take precedence over a high numeric score. Examples include an official closure or warning, a severe-weather alert that intersects the location/time, data outside its allowed staleness window for a safety-critical factor, or conditions beyond a configured activity limit. The UI should never silently convert unknown safety data into “safe.”
-
-## Missing, stale, bad, or unavailable data
-
-- Validate every upstream payload against a source-specific schema and reject impossible or malformed values.
-- Apply per-signal freshness limits; label stale observations and do not treat them as current.
-- Retry transient failures with bounded exponential backoff and jitter, then use a time-limited last-known-good record when allowed.
-- Open a circuit breaker for a repeatedly failing feed so one provider cannot stall the request.
-- Reweight only non-critical missing preference factors. Never reweight around a required safety gate.
-- Return `limited` or `unavailable` with reasons when evidence is insufficient; do not manufacture a recommendation.
-- Surface partial coverage, source errors, timestamps, and confidence in the response and UI.
-- Cache by provider, station or grid, product, and time bucket; respect upstream terms and rate limits.
-
-## Local development
-
-The current prototype is dependency-free and requires Python 3 only to serve the static files:
-
-```bash
-git clone https://github.com/AarenSunny/tidewise-grokathon.git
-cd tidewise-grokathon
-python3 -m http.server 8000
-```
-
-Open `http://localhost:8000`. The current UI is an interactive product shell; its recommendation cards are explicitly labeled previews. The provider-neutral scoring engine is real and can be verified with Node.js 20+:
-
-```bash
-node --test test/recommendation.test.mjs
-```
-
-No API keys are required for the skeleton. Never commit `.env` or credentials.
-
-## Robustness and test plan
-
-- Contract tests for every public API adapter using representative responses plus null, malformed, delayed, and error cases.
-- Deterministic scoring tests at thresholds and around time-zone/daylight transitions.
-- Geospatial tests for station selection, coastal boundaries, distance limits, and alert polygons.
-- End-to-end test using live current data, while keeping recorded fixtures for repeatable CI.
-- Visible provenance and freshness checks in API and UI acceptance tests.
-- Failure drills for timeouts, rate limits, partial responses, provider downtime, and stale cache entries.
-
-## Hackathon deliverables
-
-The Track 03 submission requires:
-
-- A **public GitHub repository** containing this README and a **Grok Bot session export with personal information removed**.
-- A **public video link**, no longer than two minutes. A rough demo is acceptable.
-- A deployment is ideal but not required. If local-only, this README must contain exact run instructions.
-- A **presentation or slideshow at a public link**.
-
-Judging emphasizes real/current public data, meaningful processing and logic, robustness to bad or unavailable feeds, a clear benefit to people on the ground, and evidence of how Grok Bot was used to plan, build, and debug.
-
-See [SUBMISSION_CHECKLIST.md](SUBMISSION_CHECKLIST.md) for the final 4:45 PM handoff.
-
-## Current status
-
-Implemented: responsive interactive UI, all eight activity choices, geolocation input, provider-neutral normalization/scoring, safety overrides, freshness/confidence handling, and five passing tests. Next: connect live adapters, replace preview cards with scored time/location windows, deploy, and add the redacted Grok session export, video, and slides.
-
+**Phase 1 complete:** architecture confirmed, pydantic models, adapter interface, skeleton, docs. Awaiting `continue` for Phase 2 (probes after `DATA_SOURCES.md`).

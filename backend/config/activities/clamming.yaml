@@ -1,0 +1,21 @@
+# Clamming scorer config — refine from DATA_SOURCES.md Part B in Phase 5.
+activity: clamming
+required_sources:
+  - coops_tides
+  - alerts_shellfish
+gates:
+  - name: minus_tide
+    rule: tide_height_ft_mllw <= -0.5
+    missing: cannot_confirm
+  - name: daylight
+    rule: is_daylight == true
+    missing: cannot_confirm
+  - name: no_biotoxin_closure
+    rule: "shellfish_closure not active"
+    missing: cannot_confirm
+  - name: season_open
+    rule: season_open == true
+    missing: cannot_confirm
+weights:
+  tide_depth: 0.6
+  window_length: 0.4
