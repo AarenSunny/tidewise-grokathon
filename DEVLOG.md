@@ -88,4 +88,4 @@ Judges: this log records decisions, bugs, live-data surprises, review triage, an
 - Export: `grok-sessions/build/` (this session).
 
 ### Commits
-- (filled after commit)
+-  build(phase2): add live source probes and shape report
