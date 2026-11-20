@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class Activity(str, Enum):
@@ -20,13 +21,24 @@ class SourceStatus(str, Enum):
     stale = "stale"
     down = "down"
     degraded = "degraded"
+    unknown = "unknown"
+
+
+def require_aware(dt: datetime) -> datetime:
+    """Reject naive datetimes; require UTC-aware (or any tz)."""
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        raise ValueError("datetime must be timezone-aware (prefer UTC)")
+    return dt
+
+
+AwareDatetime = Annotated[datetime, Field(description="Timezone-aware datetime")]
 
 
 class GateResult(BaseModel):
     """Outcome of a hard safety gate.
 
-    Missing evidence must NEVER pass. Use passed=False with
-    reason indicating cannot_confirm when data is absent.
+    Missing evidence must NEVER pass. When cannot_confirm is True,
+    passed is forced False by a model_validator (review1-#1).
     """
 
     name: str
@@ -36,10 +48,12 @@ class GateResult(BaseModel):
     evidence: Optional[str] = None
 
     @model_validator(mode="after")
-    def _unconfirmed_gate_cannot_pass(self) -> "GateResult":
-        # Missing or unconfirmed evidence is not a pass.
-        if self.passed and self.cannot_confirm:
-            raise ValueError("a gate cannot pass when cannot_confirm is true")
+    def _missing_never_passes(self) -> GateResult:
+        if self.cannot_confirm and self.passed:
+            raise ValueError(
+                "GateResult: cannot_confirm=True forbids passed=True "
+                "(missing/unknown must never pass a safety gate)"
+            )
         return self
 
 

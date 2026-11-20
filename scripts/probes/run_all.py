@@ -13,14 +13,14 @@ from __future__ import annotations
 import csv
 import io
 import json
-import ssl
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any, Optional
 
@@ -41,6 +41,65 @@ class ProbeResult:
     notes: list[str] = field(default_factory=list)
     discrepancies: list[str] = field(default_factory=list)
     error: Optional[str] = None
+    # Freshness (review2-N4): HTTP 200 is NOT "usable". Judge by observation age.
+    observed_at: Optional[str] = None  # ISO UTC of the data's own timestamp
+    age_hours: Optional[float] = None
+    max_age_hours: Optional[float] = None
+    verdict: str = ""  # OK | STALE | UNKNOWN_AGE | FAIL | N/A (set by finalize())
+
+
+# Per-source freshness budgets (hours). These MUST match the adapters' max_age
+# (backend/adapters/*.py); tests/test_probe_freshness.py enforces the match.
+# None => forward-looking / not time-sensitive (predictions), verdict "N/A".
+MAX_AGE_HOURS: dict[str, Optional[float]] = {
+    "coops_predictions_hilo": None,
+    "coops_water_level_latest": 0.5,
+    "coops_currents_SFB1201": None,
+    "ndbc": 3.0,  # NdbcAdapter.max_age
+    "erddap_mur_sst": 72.0,  # SST_STALE_DAYS=3
+    "erddap_viirs_chl_8day": 240.0,  # CHL_STALE_DAYS=10
+    "erddap_charm_0day": 72.0,  # CharmAdapter.max_age=3d
+    "erddap_mur_anom": 72.0,
+    "epa_uv_hourly_94121": 6.0,  # EpaUvAdapter.max_age
+}
+
+
+def _parse_iso_utc(token: str) -> Optional[datetime]:
+    try:
+        dt = datetime.fromisoformat(str(token).strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def set_observed(r: "ProbeResult", observed: Optional[datetime], max_age_h: Optional[float]) -> None:
+    """Record the data's own timestamp + budget so finalize() can judge age."""
+    r.max_age_hours = max_age_h
+    if observed is not None:
+        r.observed_at = observed.astimezone(timezone.utc).isoformat()
+        r.age_hours = round((datetime.now(timezone.utc) - observed).total_seconds() / 3600, 2)
+
+
+def finalize(r: "ProbeResult") -> "ProbeResult":
+    """verdict OK only if reachable AND parsed AND fresh (review2-N4/N6)."""
+    if not r.ok:
+        r.verdict = "FAIL"
+    elif r.max_age_hours is None:
+        r.verdict = "N/A"
+    elif r.age_hours is None:
+        r.verdict = "UNKNOWN_AGE"
+        r.discrepancies.append("no observation timestamp parsed; cannot judge freshness")
+    elif r.age_hours > r.max_age_hours:
+        r.verdict = "STALE"
+        r.discrepancies.append(
+            f"FROZEN/STALE: observation age {r.age_hours:.1f} h > budget {r.max_age_hours:.1f} h "
+            "(HTTP 200 does not mean usable)"
+        )
+    else:
+        r.verdict = "OK"
+    return r
 
 
 def _req(
@@ -48,16 +107,16 @@ def _req(
     *,
     timeout: float = 60,
     headers: Optional[dict[str, str]] = None,
-    insecure: bool = False,
 ) -> tuple[int, bytes, float]:
+    """HTTP GET with strict TLS verification. There is intentionally NO insecure option
+    (review2-N6); never add one to committed code."""
     h = {"User-Agent": UA, "Accept": "*/*"}
     if headers:
         h.update(headers)
-    ctx = ssl._create_unverified_context() if insecure else None
     req = urllib.request.Request(url, headers=h)
     t0 = time.perf_counter()
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             body = resp.read()
             status = getattr(resp, "status", 200)
         return status, body, (time.perf_counter() - t0) * 1000
@@ -115,7 +174,7 @@ def probe_coops() -> list[ProbeResult]:
     # latest water level
     url = (
         f"{base}?date=latest&station=9414290&product=water_level&datum=MLLW"
-        f"&time_zone=lst_ldt&units=english&format=json"
+        f"&time_zone=gmt&units=english&format=json"
     )
     r = ProbeResult(source="coops_water_level_latest", ok=False)
     try:
@@ -128,6 +187,9 @@ def probe_coops() -> list[ProbeResult]:
         if "error" in data:
             r.discrepancies.append(f"error payload: {data['error']}")
             r.ok = False
+        elif data.get("data"):
+            ts = datetime.strptime(data["data"][0]["t"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+            set_observed(r, ts, MAX_AGE_HOURS["coops_water_level_latest"])
     except Exception as e:  # noqa: BLE001
         r.error = f"{type(e).__name__}: {e}"
     results.append(r)
@@ -204,6 +266,14 @@ def probe_ndbc() -> list[ProbeResult]:
                 if len(parts) >= 5:
                     stamp = f"{parts[0]}-{parts[1]}-{parts[2]} {parts[3]}:{parts[4]}Z"
                     r.notes.append(f"latest_row_stamp={stamp}")
+                    try:
+                        obs = datetime(
+                            int(parts[0]), int(parts[1]), int(parts[2]),
+                            int(parts[3]), int(parts[4]), tzinfo=timezone.utc,
+                        )
+                        set_observed(r, obs, MAX_AGE_HOURS["ndbc"])
+                    except ValueError:
+                        pass
                     # staleness check for known-stale 46239
                     if sid == "46239":
                         # year month day
@@ -347,6 +417,7 @@ def probe_erddap() -> list[ProbeResult]:
     base = "https://coastwatch.pfeg.noaa.gov/erddap/griddap"
 
     def erddap(name: str, path_q: str, expect_col: str) -> ProbeResult:
+        """Query ERDDAP; time col 0 is the dataset time (UTC)."""
         r = ProbeResult(source=name, ok=False)
         url = f"{base}/{path_q}"
         try:
@@ -362,6 +433,7 @@ def probe_erddap() -> list[ProbeResult]:
             if rows:
                 # time usually col 0
                 r.notes.append(f"time_sample={rows[0][0] if rows[0] else None}")
+                set_observed(r, _parse_iso_utc(rows[0][0]) if rows[0] else None, MAX_AGE_HOURS.get(name))
             nulls = sum(1 for row in rows if expect_col in cols and row[cols.index(expect_col)] is None)
             if nulls:
                 r.notes.append(f"null_{expect_col}_count={nulls}/{len(rows)} (coast/land fill)")
@@ -371,10 +443,11 @@ def probe_erddap() -> list[ProbeResult]:
             body = getattr(e, "body_bytes", b"")[:300].decode("utf-8", "replace")
             r.error = f"HTTPError: {e.code}"
             r.sample = body
-            if e.code in (404, 503):
+            if e.code in (404, 502, 503):
+                # review2-N5: ERDDAP flaps (404 -> 503 -> 200 within ~20 min); transient, not a rename.
                 r.discrepancies.append(
-                    f"CoastWatch ERDDAP returned {e.code} for dataset path — "
-                    "DATA_SOURCES verified this ID earlier today; treat as feed outage/rename"
+                    f"CoastWatch ERDDAP returned {e.code} — transient/intermittent availability "
+                    "(flapping observed); retry with backoff, then serve last-good with age"
                 )
             return r
         except Exception as e:  # noqa: BLE001
@@ -472,7 +545,8 @@ def probe_cdph_arcgis() -> list[ProbeResult]:
         r.error = f"{type(e).__name__}: {e}"
     results.append(r)
 
-    # TLS check on cdph.ca.gov (document only)
+    # TLS check on cdph.ca.gov (document only). Strict verification ONLY (review2-N6):
+    # if the server omits its intermediate cert the probe FAILS; we never disable verification.
     r = ProbeResult(source="cdph_html_tls_check", ok=False)
     try:
         status, body, ms = _req(
@@ -481,21 +555,17 @@ def probe_cdph_arcgis() -> list[ProbeResult]:
         )
         r.http_status, r.latency_ms = status, ms
         r.ok = status == 200
-        r.notes.append("strict TLS succeeded in this environment")
+        r.notes.append("strict TLS verification succeeded")
     except Exception as e:  # noqa: BLE001
         r.error = f"{type(e).__name__}: {e}"
-        r.notes.append("strict TLS failed — matches DATA_SOURCES quirk; try insecure for probe only")
-        try:
-            status, body, ms = _req(
-                "https://www.cdph.ca.gov/Programs/OPA/Pages/Shellfish-Advisories.aspx",
-                timeout=45,
-                insecure=True,
-            )
-            r.http_status, r.latency_ms = status, ms
-            r.ok = status == 200
-            r.discrepancies.append("CDPH TLS requires insecure context here (probe-only)")
-        except Exception as e2:  # noqa: BLE001
-            r.error = f"strict+insecure failed: {e} / {e2}"
+        r.notes.append(
+            "strict TLS verification FAILED (server omits intermediate cert); "
+            "source NOT usable for the closure gate; verification is never disabled"
+        )
+        r.discrepancies.append(
+            "CDPH HTML unusable under strict TLS; closure gate must be cannot_confirm "
+            "unless the intermediate CA is pinned"
+        )
     results.append(r)
     return results
 
@@ -606,6 +676,17 @@ def probe_uv() -> list[ProbeResult]:
         r.sample = data[:2] if isinstance(data, list) else data
         r.ok = status == 200 and isinstance(data, list) and bool(data)
         if isinstance(data, list) and data:
+            la = ZoneInfo("America/Los_Angeles")
+            now_utc = datetime.now(timezone.utc)
+            stamps: list[datetime] = []
+            for row in data:
+                try:
+                    dt = datetime.strptime(row["DATE_TIME"], "%b/%d/%Y %I %p").replace(tzinfo=la)
+                except (KeyError, ValueError):
+                    continue
+                if dt.astimezone(timezone.utc) <= now_utc:
+                    stamps.append(dt.astimezone(timezone.utc))
+            set_observed(r, max(stamps) if stamps else None, MAX_AGE_HOURS["epa_uv_hourly_94121"])
             keys = set(data[0].keys())
             if not {"ZIP", "UV_VALUE"} <= keys:
                 r.discrepancies.append(f"unexpected EPA UV keys: {keys}")
@@ -650,7 +731,7 @@ def write_report(all_results: list[ProbeResult]) -> None:
     lines = [
         "# TideWise build probe report (Phase 2)",
         "",
-        f"Ran: **{now}**",
+        f"Ran: **{now}** (point-in-time snapshot; feeds flap and age, re-run before relying on it)",
         f"UA: `{UA}`",
         "",
         "Live probes against every Part A source in `DATA_SOURCES.md`. "
@@ -658,16 +739,25 @@ def write_report(all_results: list[ProbeResult]) -> None:
         "",
         "## Summary",
         "",
-        "| Source | OK | HTTP | Latency ms | Notes / discrepancies |",
-        "| --- | --- | --- | --- | --- |",
+        "Verdict is **OK only if reachable AND parsed AND fresh** (observation age within the "
+        "adapter's `max_age`). HTTP 200 alone is never OK: frozen feeds show **STALE**. "
+        "TLS verification is always strict.",
+        "",
+        "| Source | Verdict | HTTP | Latency ms | Obs age h / budget h | Notes / discrepancies |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for r in all_results:
         note = "; ".join(r.notes + r.discrepancies)
         if r.error:
             note = f"ERROR: {r.error}" + (f"; {note}" if note else "")
+        age = (
+            f"{r.age_hours:.1f} / {r.max_age_hours:.1f}"
+            if r.age_hours is not None and r.max_age_hours is not None
+            else "-"
+        )
         lines.append(
-            f"| `{r.source}` | {'yes' if r.ok else 'no'} | {r.http_status} | "
-            f"{(f'{r.latency_ms:.0f}' if r.latency_ms is not None else '-')} | {note[:180]} |"
+            f"| `{r.source}` | {r.verdict or ('OK' if r.ok else 'FAIL')} | {r.http_status} | "
+            f"{(f'{r.latency_ms:.0f}' if r.latency_ms is not None else '-')} | {age} | {note[:180]} |"
         )
 
     lines += ["", "## Response shapes (abbreviated)", ""]
@@ -678,6 +768,10 @@ def write_report(all_results: list[ProbeResult]) -> None:
             json.dumps(
                 {
                     "ok": r.ok,
+                    "verdict": r.verdict,
+                    "observed_at": r.observed_at,
+                    "age_hours": r.age_hours,
+                    "max_age_hours": r.max_age_hours,
                     "http_status": r.http_status,
                     "shape": r.shape,
                     "sample": r.sample,
@@ -706,8 +800,8 @@ def write_report(all_results: list[ProbeResult]) -> None:
     lines.append("- CO-OPS: parse `predictions[]` / `data[]`; treat `error.message` as down/no-product.")
     lines.append("- NDBC: reject `MM`; check row timestamp for stale CDIP IDs; WTMP/WVHT metric.")
     lines.append("- NWS: require User-Agent; resolve points→grid each time (XY may shift).")
-    lines.append("- ERDDAP: tiny bboxes; C-HARM lon 0–360; treat null fills; check `time` freshness.")
-    lines.append("- Shellfish: ArcGIS FeatureServer primary; CDPH HTML TLS may need careful CA handling.")
+    lines.append("- ERDDAP: availability flaps (404/503/200); treat as transient. tiny bboxes; C-HARM lon 0-360; null fills; judge freshness by `time` (C-HARM ~17 d and VIIRS ~10 d are STALE).")
+    lines.append("- Shellfish: ArcGIS layers are static pins (cannot represent closure status); CDPH HTML fails strict TLS (missing intermediate) -> closure gate is cannot_confirm until a dated source exists. Never disable TLS verification.")
     lines.append("- UV: EPA hourly ZIP; do not use POWER UV_INDEX (fill).")
     lines.append("- Fires: FIRMS CSV + bbox filter; EONET narrative only.")
     lines.append("")
@@ -735,17 +829,22 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             print(f"BATCH FAIL {name}: {e}", file=sys.stderr)
             batch = [ProbeResult(source=name, ok=False, error=str(e))]
+        batch = [finalize(r) for r in batch]
         all_results.extend(batch)
         (OUT / f"{name}.json").write_text(
             json.dumps([asdict(r) for r in batch], indent=2, default=str)
         )
         for r in batch:
-            flag = "OK" if r.ok else "FAIL"
-            print(f"  [{flag}] {r.source} http={r.http_status} {r.error or ''}")
+            age = f" age_h={r.age_hours}" if r.age_hours is not None else ""
+            print(f"  [{r.verdict}] {r.source} http={r.http_status}{age} {r.error or ''}")
 
     write_report(all_results)
     failed = [r for r in all_results if not r.ok]
-    print(f"Done: {len(all_results) - len(failed)}/{len(all_results)} ok")
+    stale = [r for r in all_results if r.verdict in {"STALE", "UNKNOWN_AGE"}]
+    print(
+        f"Done: {len(all_results) - len(failed)}/{len(all_results)} reachable; "
+        f"{len(stale)} STALE/UNKNOWN_AGE"
+    )
     return 1 if len(failed) > len(all_results) // 2 else 0
 
 
