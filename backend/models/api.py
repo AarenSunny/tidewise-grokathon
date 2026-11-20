@@ -29,6 +29,9 @@ class QueryResponse(BaseModel):
     recommendations: list[SpotRecommendation] = Field(default_factory=list)
     explanation: Optional[str] = None
     health: list[AdapterHealth] = Field(default_factory=list)
+    scorer: Optional[str] = None
+    note: Optional[str] = None
+    mode: str = "live"
 
 
 class RecommendResponse(BaseModel):
@@ -40,6 +43,9 @@ class RecommendResponse(BaseModel):
     health: list[AdapterHealth] = Field(default_factory=list)
     note: Optional[str] = None
     distances_km: dict[str, float] = Field(default_factory=dict)
+    # additive (phase3-e2e): which scorer produced the windows; "activity_scorers" or "unavailable"
+    scorer: Optional[str] = None
+    mode: str = "live"
 
     @field_validator("start", "end", mode="after")
     @classmethod

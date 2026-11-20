@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -14,10 +14,12 @@ from backend.features.moon import moon_phase
 from backend.features.solar import solar_times
 from backend.features.tides import find_clamming_windows, find_crabbing_windows
 from backend.models.common import Activity, SourceStatus
-from backend.models.features import CurrentSample, SpotFeatureGrid, TideSample
+from backend.models.features import CurrentSample, TideSample
 from backend.models.spots import Spot
 from backend.scorers import best_windows, get_scorer
 from tests.conftest import HMB_LAT, HMB_LON, LA, UTC, aware, make_chl, make_grid, make_hour
+
+from backend.models.features import SpotFeatureGrid
 
 
 def _tide(moment, height, kind=None) -> TideSample:
@@ -124,6 +126,7 @@ def test_slack_and_moderate_current_windows():
 
 
 def test_best_clamming_label_is_local_and_ranked():
+    saturday = aware(2026, 11, 21, 8)
     hours = []
     for hour in range(7, 12):
         moment = aware(2026, 11, 21, hour)

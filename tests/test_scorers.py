@@ -15,7 +15,7 @@ from backend.models.common import Confidence, GateResult, SourceStatus
 from backend.models.scoring import ScoredWindow
 from backend.scorers import get_scorer
 from backend.scorers.rules import ScorerConfigError
-from tests.conftest import HMB_LAT, HMB_LON, UTC, all_ok, aware, make_chl, make_grid
+from tests.conftest import HMB_LAT, HMB_LON, UTC, all_ok, aware, make_chl, make_grid, make_hour
 
 NOON = aware(2026, 11, 21, 12, 0)
 
@@ -143,7 +143,7 @@ def test_output_cites_only_input_measurements():
     moment = NOON
     grid = make_grid(moment, tide_height_ft_mllw=-1.37, wind_speed_kt=12.25, sst_c=17.65)
     window = _score("clamming", grid)
-    inputs = {-1.37, 12.25, 17.65, 0.4, 0.2, 14.0, 2.0}
+    inputs = {-1.37, 12.25, 17.65, 0.4, 0.2, 14.0, 2.0, 2.0}
     for gate in window.gates:
         if not gate.evidence or not gate.evidence.startswith("cited:"):
             continue

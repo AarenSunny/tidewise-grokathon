@@ -660,4 +660,4 @@ def _worst(statuses: list[SourceStatus]) -> SourceStatus:
         SourceStatus.unknown: 3,
         SourceStatus.down: 4,
     }
-    return max(statuses, key=lambda status: rank.get(status, 3))
+    return max(statuses, key=lambda status: rank[status])

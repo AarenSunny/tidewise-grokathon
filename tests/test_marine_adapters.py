@@ -9,9 +9,11 @@ from pathlib import Path
 import httpx
 import pytest
 
-from backend.adapters.coops import CoopsCurrentAdapter, CoopsTideAdapter, user_agent as coops_ua
+from backend.adapters.coops import CoopsCurrentAdapter, CoopsTideAdapter
+from backend.adapters.coops import user_agent as coops_ua
 from backend.adapters.ndbc import NdbcAdapter, NdbcObs
-from backend.adapters.nws import NwsAlertsAdapter, user_agent as nws_ua
+from backend.adapters.nws import NwsAlertsAdapter
+from backend.adapters.nws import user_agent as nws_ua
 from backend.adapters.registry import AdapterRegistry
 from backend.cache.memory import MemoryTTLCache
 from backend.models.common import Activity, SourceStatus
