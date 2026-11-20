@@ -20,7 +20,7 @@ export const API_BASE_URL = rawBase.replace(/\/+$/, '');
 
 /** Default network timeout for live /recommend and /health calls. */
 // Render free tier cold starts take ~10-15 s; wait long enough before falling back.
-export const REQUEST_TIMEOUT_MS = 20000;
+export const REQUEST_TIMEOUT_MS = 45000;
 
 function combineSignals(
   timeoutMs: number,

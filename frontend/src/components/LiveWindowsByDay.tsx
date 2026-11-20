@@ -17,7 +17,7 @@ function GateBadge({ gate }: { gate: GateView }) {
     gate.state === 'pass'
       ? 'border-teal-600/40 bg-teal-50 text-teal-800'
       : gate.state === 'cant-confirm'
-        ? 'border-dashed border-amber-500 bg-amber-50 text-amber-900'
+        ? 'border-sky-200 bg-sky-50 text-sky-900'
         : 'border-red-600/40 bg-red-50 text-red-800';
   return (
     <span
@@ -80,14 +80,14 @@ function WindowDetail({ row, onClose }: { row: LiveWindowRow; onClose: () => voi
         <div
           role="status"
           data-testid="cant-confirm-alert"
-          className="mt-4 rounded-[12px] border-[1.5px] border-dashed border-amber-500 bg-amber-50 p-3.5"
+          className="mt-4 rounded-[12px] border-[1.5px] border-sky-200 bg-sky-50 p-3.5"
         >
-          <div className="text-[13px] font-semibold text-amber-900">
-            Can&apos;t confirm
+          <div className="text-[13px] font-semibold text-sky-900">
+            Check before you go
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-amber-900/90">
-            One or more safety gates could not be confirmed. Missing or stale
-            data is never treated as safe.
+          <p className="mt-1 text-xs leading-relaxed text-sky-900/80">
+            Some live safety feeds are temporarily unavailable, so check the
+            official advisory before heading out.
           </p>
         </div>
       )}
@@ -174,8 +174,8 @@ export function LiveWindowsByDay({
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {row.hasCantConfirm && (
-                        <span className="inline-flex items-center rounded-full border border-dashed border-amber-500 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900">
-                          Can&apos;t confirm
+                        <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-900">
+                          Check before you go
                         </span>
                       )}
                       <span className="font-tabular text-xs text-navy-500">

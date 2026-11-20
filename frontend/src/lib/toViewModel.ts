@@ -93,9 +93,9 @@ function resolveClosureStatus(
             : "We couldn't confirm today's shellfish closure status.";
     return {
       status: 'unverified',
-      label: 'Unable to verify closure',
-      detail: 'Closure feed unreachable',
-      alertTitle: 'Unable to verify closure status',
+      label: 'Check advisory',
+      detail: 'Live feed temporarily unavailable',
+      alertTitle: 'Check the official advisory before you go',
       alertMessage:
         gate?.reason ??
         `${sourceHint} Check the official advisory before you dig.`,
