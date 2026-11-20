@@ -54,11 +54,14 @@ export function ScoreWindowCard() {
   return (
     <section className="mt-5 rounded-[16px] border border-sand-200 bg-white px-5 py-4 shadow-xs">
       <div className="text-[11px] font-semibold tracking-[0.08em] text-teal-700 uppercase">
-        Live recommendation
+        Unscreened timing estimate — safety gates not applied
       </div>
       <h2 className="mt-1 font-display text-lg font-semibold text-navy-900">
-        Recommended window
+        Timing window
       </h2>
+      <p className="mt-1 text-sm leading-relaxed text-navy-700">
+        Use the Planner for safety-gated recommendations.
+      </p>
       <form
         className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end"
         onSubmit={(event) => {
