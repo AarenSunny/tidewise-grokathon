@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sand-50: #FBF8F1;
+  --color-sand-100: #F4EEE2;
+  --color-sand-200: #E8DFCC;
+  --color-sand-300: #D6C9AE;
+
+  --color-navy-900: #0E2238;
+  --color-navy-700: #2B405A;
+  --color-navy-500: #5A6B80;
+  --color-navy-300: #A3AEBB;
+  --color-navy-100: #E3E7EC;
+
+  --color-teal-50: #EAF5F4;
+  --color-teal-100: #CFE8E6;
+  --color-teal-300: #7FBFBA;
+  --color-teal-600: #1F7A78;
+  --color-teal-700: #18615F;
+  --color-teal-800: #134E4C;
+
+  --color-amber-50: #FFF7E6;
+  --color-amber-100: #FDEBC4;
+  --color-amber-500: #E0A21B;
+  --color-amber-700: #A4690A;
+  --color-amber-900: #6B4206;
+
+  --color-red-50: #FDEEEC;
+  --color-red-100: #F8D5CF;
+  --color-red-600: #C2412D;
+  --color-red-800: #8A2A1C;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-card: 0 4px 16px rgba(14, 34, 56, 0.08);
+  --shadow-sheet: 0 12px 40px rgba(14, 34, 56, 0.16);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--color-sand-50);
+    color: var(--color-navy-900);
+  }
+
+  .font-tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
