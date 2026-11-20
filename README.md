@@ -64,6 +64,26 @@ DATA_SOURCES.md   research session (do not edit in build)
 DEVLOG.md         decisions, bugs, review triage
 ```
 
+## Try it
+
+Live API: `https://tidewise-api.onrender.com` (the free tier may take ~30 s to wake up).
+
+```bash
+# Ranked crabbing windows at Pillar Point (crabbing needs gear=, otherwise the gear gate is cannot_confirm)
+curl "https://tidewise-api.onrender.com/recommend?activity=crabbing&spot=pillar_point_harbor&gear=hoop_net"
+
+# Plain-English question
+curl -X POST https://tidewise-api.onrender.com/query \
+  -H 'content-type: application/json' \
+  -d '{"text":"crabbing at Pillar Point with a hoop net"}'
+
+# Clamming with an explicit window (timezone-aware start/end required). Scoring only covers the
+# next ~48-72 h of forecast inputs, so a far-future range like Dec 5 currently returns no windows.
+curl "https://tidewise-api.onrender.com/recommend?activity=clamming&spot=pillar_point_harbor&start=2026-12-05T10:00:00-08:00&end=2026-12-05T18:00:00-08:00"
+```
+
+Windows show `eligible: false` with `cannot_confirm` gates whenever a safety source (CDPH shellfish advisories, satellite chlorophyll) is down or stale. That is intentional: missing data never passes a safety gate. Swimming and sailing currently stay cannot_confirm (bacteria and NWS alerts are not yet fed into scoring).
+
 ## How to run locally
 
 ```bash
