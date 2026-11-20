@@ -207,3 +207,56 @@ spots:
     nws_zone: "PZZ540"
     county: "Sonoma County"
     notes: "Just N of core box but relevant"
+
+# Chlorophyll gates read these. Numbers are linear mg m^-3, not log10.
+# Keyed by water region so outer coast and SF Bay do not share a cutoff.
+bloom_regions:
+  outer_coast:
+    # Nezlin et al. 2012, JGR Oceans (doi:10.1029/2011JC007773).
+    # Central and southern California open coast: chl-a above 5 mg m^-3
+    # is the remote-sensing bloom / frontal marker (DATA_SOURCES.md §5a-ii).
+    bloom_above_mg_m3: 5.0
+  sf_bay:
+    # Sutula et al. 2017, Estuaries and Coasts (PMC6134865).
+    # Inside San Francisco Bay the protective chlorophyll level is about
+    # 13 mg m^-3. The at-risk band for HAB-alert / low-DO probability is
+    # 25–40 mg m^-3 (DATA_SOURCES.md §5a-ii).
+    protective_max_mg_m3: 13.0
+    at_risk_low_mg_m3: 25.0
+    at_risk_high_mg_m3: 40.0
+
+# Spot id → bloom_regions key. Spots missing from this map are unknown.
+# sf_bay is only the SF Bay / San Pablo Bay spots flagged dungeness_prohibited.
+# Tomales and Bodega stay on the outer-coast line; they are not Sutula's SF Bay.
+spot_regions:
+  pillar_point_harbor: outer_coast
+  half_moon_bay_state_beach: outer_coast
+  montara_fitzgerald: outer_coast
+  pacifica_linda_mar: outer_coast
+  rockaway_pacifica: outer_coast
+  ocean_beach_sf: outer_coast
+  baker_beach: outer_coast
+  drakes_beach: outer_coast
+  tomales_inverness: outer_coast
+  bodega_harbor: outer_coast
+  crissy_field: sf_bay
+  aquatic_park: sf_bay
+  angel_island_ayala: sf_bay
+  berkeley_marina: sf_bay
+  richardson_sausalito: sf_bay
+
+# 14 CCR §29.85(b)(1): no Dungeness take in SF Bay or San Pablo Bay.
+dungeness_prohibited_regions:
+  - sf_bay
+
+# CDFW Fishing Zone 3 (DATA_SOURCES.md): 38°46.125′ N to Pigeon Point 37°11′ N.
+crab_zones:
+  - id: zone_3
+    lat_min: 37.1833333333
+    lat_max: 38.76875
+    trap_restriction: true
+
+# rank_value = score_weight * (score/100) + distance_weight * (1 / (1 + miles))
+ranking:
+  score_weight: 0.65
+  distance_weight: 0.35

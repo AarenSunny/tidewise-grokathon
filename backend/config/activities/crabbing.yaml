@@ -1,12 +1,144 @@
+# Crabbing gates and weights. Gear and season are config; unlisted gear
+# cannot pass. Thresholds cite DATA_SOURCES.md Part B and the 2026-11-19
+# CDFW gear update.
 activity: crabbing
 required_sources:
   - coops_tides
   - coops_currents
+  - alerts_shellfish
+  - satellite_chl
+# 14 CCR §29.85(b)(2)(B): all other counties, first Saturday in November
+# through June 30. The 2026-27 CDFW flyer (DocumentID=195690) opens
+# Saturday 2026-11-07. Dates are America/Los_Angeles civil dates, inclusive.
+# Missing or unconfirmed season data cannot pass.
+season:
+  confirmed: true
+  always_open: false
+  open: "2026-11-07"
+  close: "2027-06-30"
+  before_open: closed
+  after_close: closed
+# Gear during the 2026-27 trap restriction (CDFW news release 2026-10-30,
+# in-season page, and the 2026-27 recreational regulations PDF).
+# Zone 3 latitudes live in region.yaml (38°46.125′ N to Pigeon Point 37°11′ N).
+# status: allowed passes. Anything else, or any gear not listed, cannot pass.
+gear:
+  trap:
+    status: restricted
+    # "Until at least 2027-01-01": dates before this are a confirmed prohibition.
+    # On and after this date the lift is not confirmed.
+    boundary: "2027-01-01"
+    before_boundary: prohibited
+    on_or_after_boundary: cannot_confirm
+    note: "Recreational crab traps are restricted in CDFW Zones 1-5, including Zone 3 (38°46.125' N to Pigeon Point 37°11' N), until at least 2027-01-01."
+  hoop_net:
+    status: allowed
+    note: "Hoop nets are allowed during the trap restriction. Hoop nets must be raised and inspected at intervals not to exceed 2 hours and cannot be left unattended (14 CCR §29.80(b)(2); CDFW news release 2026-10-30)."
+  snare:
+    status: allowed
+    note: "Crab snares are allowed during the trap restriction (CDFW 2026-10-30 and the 2026-27 recreational regulations PDF)."
+    caveat: "Regulatory wording conflict: 14 CCR §29.80(e) groups crab loop traps with crab traps, while CDFW's 2026-27 announcements explicitly allow crab snares during the trap restriction. No reconciling sentence was found."
+  loop_trap:
+    status: allowed
+    note: "Loop traps are named as allowed during the trap restriction (CDFW: hoop nets, loop traps, or hands)."
+    caveat: "Regulatory wording conflict: 14 CCR §29.80(e) says crab traps, including crab loop traps, may be used north of Point Arguello, while CDFW's 2026-27 announcements allow loop traps during the trap restriction. No reconciling sentence was found."
+  hand:
+    status: allowed
+    note: "Hand take is allowed during the trap restriction (CDFW 2026-10-30: only hoop nets, loop traps, or the hands)."
+currents:
+  # DATA_SOURCES.md B3 prefers slack or weaker current. No statute gives a
+  # knot cutoff; these bounds only rank windows.
+  slack_max_kt: 0.5
+  moderate_max_kt: 1.5
+  slack_rank_bonus: 20
+bloom:
+  fail_above:
+    outer_coast: bloom_above_mg_m3
+    sf_bay: protective_max_mg_m3
+  at_risk_band:
+    sf_bay: [at_risk_low_mg_m3, at_risk_high_mg_m3]
+alert_patterns:
+  shellfish_closure:
+    - shellfish
+    - biotoxin
+    - domoic
+    - mussel quarantine
+    - psp
+    - paralytic
+    - crab advisory
+window_phrase: slack water
+verdict_bands:
+  good_at_or_above: 0.75
+  fair_at_or_above: 0.45
 gates:
   - name: season_open
-    rule: season_open == true
+    rule: "season_open == true"
     missing: cannot_confirm
+    sources: []
+    unit: ""
+    display: season
+    blocked_reason: "Dungeness season is closed"
+  - name: gear_allowed
+    rule: "gear_allowed == true"
+    missing: cannot_confirm
+    sources: []
+    unit: ""
+    display: gear
+    blocked_reason: "gear is not allowed"
+  - name: dungeness_water
+    rule: "dungeness_water_legal == true"
+    missing: cannot_confirm
+    sources: []
+    unit: ""
+    display: water
+    blocked_reason: "Dungeness take prohibited in the bay"
+  - name: no_domoic_advisory
+    rule: "shellfish_closure not active"
+    missing: cannot_confirm
+    sources: [alerts_shellfish]
+    unit: ""
+    advisory: true
+    blocked_reason: "CDPH biotoxin quarantine"
+  - name: no_bloom
+    rule: "bloom_clear == true"
+    missing: cannot_confirm
+    sources: [satellite_chl]
+    unit: "mg m^-3"
+    advisory: true
+    blocked_reason: "chlorophyll bloom"
 weights:
-  slack_closeness: 0.5
-  moderate_current: 0.3
-  moon_phase: 0.2
+  slack_closeness:
+    weight: 0.55
+    curve: slack
+    summary_name: slack
+    unit: kt
+    summary_unit: kt
+    source: coops_currents
+  moderate_current:
+    weight: 0.35
+    curve: moderate_current
+    summary_name: current
+    unit: kt
+    summary_unit: kt
+    source: coops_currents
+  moon_phase:
+    # DATA_SOURCES.md B3: no peer-reviewed moon rule for Dungeness catch.
+    # Kept as a small folk-wisdom factor and labeled as such. Used for
+    # night crabbing as context, not as a catch-rate claim.
+    weight: 0.10
+    field: moon_phase
+    aggregate: mean
+    curve: spring_tide
+    folk_wisdom: true
+    summary_name: moon
+    unit: phase
+    summary_unit: phase
+    source: offline_lunar
+confidence_penalties:
+  missing: 0.25
+  stale: 0.20
+  down: 0.35
+  degraded: 0.15
+  sentinel: 0.25
+  unknown: 0.25
+min_confidence_to_recommend: 0.60

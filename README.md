@@ -103,3 +103,34 @@ Placeholders — filled in Phase 8.
 ## Status
 
 **Phase 1 complete:** architecture confirmed, pydantic models, adapter interface, skeleton, docs. Awaiting `continue` for Phase 2 (probes after `DATA_SOURCES.md`).
+
+## Deployment
+
+Live URLs (verified 2026-11-19):
+
+- Frontend (Vercel): https://tidewise-asunny.vercel.app
+- Backend API (Render): https://tidewise-api.onrender.com — try [`/health`](https://tidewise-api.onrender.com/health) and [`/spots`](https://tidewise-api.onrender.com/spots)
+
+Both redeploy automatically on every push to `main`.
+
+The backend runs on Render's free plan, which sleeps after about 15 minutes idle; the first request after that can take ~50 seconds.
+
+### Backend (Render)
+
+Configured by `render.yaml` (Blueprint) or manually as a Python web service:
+
+- Root directory: repository root
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn backend.api:app --host 0.0.0.0 --port $PORT`
+- Health check path: `/health`
+- Environment: `PYTHON_VERSION=3.11.9`, `APP_ENV=production`, `DEBUG=false`, `NWS_USER_AGENT=TideWise/0.1 (https://github.com/AarenSunny/tidewise-grokathon)`; optional secret `XAI_API_KEY` (set in the Render dashboard, never committed)
+
+### Frontend (Vercel)
+
+- Root directory: `frontend`
+- Framework preset: Vite (see `frontend/vercel.json`)
+- Build command: `npm run build`
+- Output directory: `dist`
+- Environment: `VITE_API_URL=https://tidewise-api.onrender.com`
+
+Vite embeds `VITE_API_URL` at build time, so redeploy the frontend after changing it. The frontend builds API URLs with `apiUrl()` from `frontend/src/api.js`; leave `VITE_API_URL` unset locally to use the Vite dev proxy to `localhost:8000`.
