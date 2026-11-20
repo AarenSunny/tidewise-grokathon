@@ -1,0 +1,48 @@
+{
+  "current_predictions": {
+    "units": "feet, knots",
+    "cp": [
+      {
+        "Type": "flood",
+        "Time": "2026-11-19 05:29",
+        "Velocity_Major": 2.16,
+        "Depth": "19",
+        "Bin": "26"
+      },
+      {
+        "Type": "slack",
+        "Time": "2026-11-19 08:26",
+        "Velocity_Major": 0,
+        "Depth": "19",
+        "Bin": "26"
+      },
+      {
+        "Type": "ebb",
+        "Time": "2026-11-19 11:50",
+        "Velocity_Major": -2.64,
+        "Depth": "19",
+        "Bin": "26"
+      },
+      {
+        "Type": "slack",
+        "Time": "2026-11-19 08:26",
+        "Velocity_Major": 0.4,
+        "Depth": "40",
+        "Bin": "40"
+      },
+      {
+        "Type": "mystery",
+        "Time": "2026-11-19 12:00",
+        "Velocity_Major": 1.0,
+        "Depth": "19",
+        "Bin": "26"
+      },
+      {
+        "Type": "ebb",
+        "Time": "2026-11-19 14:00",
+        "Depth": "19",
+        "Bin": "26"
+      }
+    ]
+  }
+}
