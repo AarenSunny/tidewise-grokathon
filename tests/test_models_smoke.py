@@ -1,8 +1,8 @@
 """Phase 1: models and config load without error."""
 
 from backend.config import load_activity_config, load_region
-from backend.models.intent import QueryIntent
 from backend.models.common import Activity
+from backend.models.intent import QueryIntent
 
 
 def test_region_loads():

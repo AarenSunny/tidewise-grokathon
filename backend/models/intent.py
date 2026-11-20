@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from backend.models.common import Activity
+from backend.models.common import Activity, require_aware
 
 
 class Preferences(BaseModel):
@@ -34,6 +34,13 @@ class QueryIntent(BaseModel):
     preferences: Preferences = Field(default_factory=Preferences)
     clarifying_question: Optional[str] = None
     raw_text: Optional[str] = None
+
+    @field_validator("start", "end", mode="after")
+    @classmethod
+    def _aware(cls, v: Optional[datetime]) -> Optional[datetime]:
+        if v is None:
+            return None
+        return require_aware(v)
 
     @property
     def is_complete(self) -> bool:

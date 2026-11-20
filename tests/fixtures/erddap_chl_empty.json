@@ -1,0 +1,6 @@
+{
+  "table": {"columnNames": ["time", "chla"], "rows": []},
+  "_host": "https://coastwatch.pfeg.noaa.gov/erddap",
+  "_dataset_id": "erdVHNchla8day",
+  "_var": "chla"
+}
