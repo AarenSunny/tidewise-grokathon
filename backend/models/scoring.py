@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, computed_field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 from backend.models.common import Confidence, GateResult, require_aware
 
@@ -69,6 +69,19 @@ class ScoredWindow(BaseModel):
     @classmethod
     def _aware(cls, v: datetime) -> datetime:
         return require_aware(v)
+
+    @model_validator(mode="after")
+    def _eligible_requires_every_gate_passed(self) -> "ScoredWindow":
+        """review1-#1: eligible=True is only constructible when gates is non-empty and
+        every gate passed with cannot_confirm False. Missing/failed gates never recommend."""
+        if self.eligible and not (
+            self.gates and all(g.passed and not g.cannot_confirm for g in self.gates)
+        ):
+            raise ValueError(
+                "eligible=True requires a non-empty gates list with every gate passed "
+                "and none cannot_confirm"
+            )
+        return self
 
     @computed_field  # type: ignore[prop-decorator]
     @property

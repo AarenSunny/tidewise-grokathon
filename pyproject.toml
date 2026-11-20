@@ -41,3 +41,5 @@ extend-immutable-calls = ["fastapi.Query", "fastapi.Depends"]
 # frozen shared interfaces / agent-owned tests: no cosmetic churn
 "backend/models/*" = ["F401", "I001"]
 "tests/test_seasons_gear.py" = ["I001", "B007"]
+"tests/test_scorers.py" = ["F401", "B033"]
+"tests/test_windows_solar_beaches.py" = ["I001", "F401", "F841"]
