@@ -124,6 +124,7 @@ Configured by `render.yaml` (Blueprint) or manually as a Python web service:
 - Start command: `uvicorn backend.api:app --host 0.0.0.0 --port $PORT`
 - Health check path: `/health`
 - Environment: `PYTHON_VERSION=3.11.9`, `APP_ENV=production`, `DEBUG=false`, `NWS_USER_AGENT=TideWise/0.1 (https://github.com/AarenSunny/tidewise-grokathon)`; optional secret `XAI_API_KEY` (set in the Render dashboard, never committed)
+- `CORS_ORIGINS` (comma-separated exact origins, no wildcards; see `backend/settings.py`) must list every deployed frontend origin, or browsers will block API calls. Currently set on Render to `https://tidewise-asunny.vercel.app,https://tidewise-two.vercel.app,https://tidewise-git-main-asunny.vercel.app,https://tidewise-git-deploy-api-check-readme-asunny.vercel.app,http://localhost:5173,http://127.0.0.1:5173`. Vercel preview URLs for other branches are blocked unless added.
 
 ### Frontend (Vercel)
 
