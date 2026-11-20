@@ -7,6 +7,7 @@ import { GuidanceRail } from './components/GuidanceRail';
 import { ApiStatus } from './components/ApiStatus';
 import { HeaderBar } from './components/HeaderBar';
 import { PlannerControls } from './components/PlannerControls';
+import { ScoreWindowCard } from './components/ScoreWindowCard';
 import { SchematicMap } from './components/SchematicMap';
 import { TimelineChart } from './components/TimelineChart';
 import { toPlannerViewModel } from './lib/toViewModel';
@@ -79,6 +80,8 @@ export function App() {
             Where and when should you go clamming?
           </h1>
         </div>
+
+        <ScoreWindowCard />
 
         {/* Controls row */}
         <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
