@@ -99,13 +99,18 @@ export function fetchScore(params: {
   location?: string;
   spot?: string;
   signal?: AbortSignal;
+  timeoutMs?: number;
 }): Promise<ScoreWindowResponse> {
   const qs = new URLSearchParams({ activity: params.activity });
   if (params.location) qs.set('location', params.location);
   if (params.spot) qs.set('spot', params.spot);
-  return requestJson<ScoreWindowResponse>(`/score?${qs.toString()}`, {
-    signal: params.signal,
-  });
+  // /score fans out to live NOAA feeds. A sleeping Render instance can take
+  // ~50s on the first request, and aborting that fetch surfaces as "Failed to fetch".
+  return requestJson<ScoreWindowResponse>(
+    `/score?${qs.toString()}`,
+    { signal: params.signal },
+    params.timeoutMs ?? 60_000,
+  );
 }
 
 export function fetchHealth(
