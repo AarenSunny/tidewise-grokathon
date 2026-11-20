@@ -8,8 +8,20 @@ import type {
 } from '../types';
 import { pacificRangeIso } from './time';
 
-export const CRABBING_GEAR = 'hoop_net';
+export type CrabbingGear = 'hoop_net' | 'snare' | 'loop_trap' | 'hand';
+
+export const CRABBING_GEAR: CrabbingGear = 'hoop_net';
 export const CRABBING_RANGE_HOURS = 72;
+
+export const CRABBING_GEAR_OPTIONS: Array<{
+  value: CrabbingGear;
+  label: string;
+}> = [
+  { value: 'hoop_net', label: 'Hoop net' },
+  { value: 'snare', label: 'Crab snare' },
+  { value: 'loop_trap', label: 'Loop trap' },
+  { value: 'hand', label: 'Hand take' },
+];
 
 export const PLANNER_ACTIVITIES: ActivityOption[] = [
   { id: 'clamming', label: 'Clamming', enabled: true },
@@ -18,7 +30,10 @@ export const PLANNER_ACTIVITIES: ActivityOption[] = [
   { id: 'sailing', label: 'Sailing', enabled: true },
 ];
 
-export function recommendParamsForActivity(activity: Activity): {
+export function recommendParamsForActivity(
+  activity: Activity,
+  crabbingGear: CrabbingGear = CRABBING_GEAR,
+): {
   activity: Activity;
   gear?: string;
   start: string;
@@ -29,7 +44,7 @@ export function recommendParamsForActivity(activity: Activity): {
     const range = pacificRangeIso(new Date(), CRABBING_RANGE_HOURS);
     return {
       activity,
-      gear: CRABBING_GEAR,
+      gear: crabbingGear,
       start: range.start,
       end: range.end,
       durationHours: CRABBING_RANGE_HOURS,
@@ -57,7 +72,7 @@ export type GateState = 'pass' | 'fail' | 'cant-confirm';
 export interface GateView {
   name: string;
   state: GateState;
-  label: 'Pass' | 'Fail' | 'Check advisory';
+  label: 'Pass' | 'Fail' | "Can't confirm";
   reason: string;
 }
 
@@ -67,7 +82,7 @@ export function toGateView(gate: GateResult): GateView {
     return {
       name: gate.name,
       state: 'cant-confirm',
-      label: 'Check advisory',
+      label: "Can't confirm",
       reason: gate.reason,
     };
   }
