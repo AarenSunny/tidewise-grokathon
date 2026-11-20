@@ -130,6 +130,9 @@ export function LiveWindowsByDay({
     [response, spots],
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [dayFilter, setDayFilter] = useState<string>('all');
+  const visibleGroups =
+    dayFilter === 'all' ? groups : groups.filter((g) => g.dateKey === dayFilter);
   const selected = groups
     .flatMap((group) => group.windows)
     .find((row) => row.id === selectedId) ?? null;
@@ -145,7 +148,29 @@ export function LiveWindowsByDay({
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
       <div className="space-y-4 lg:col-span-8">
-        {groups.map((group) => (
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Choose a day"
+          data-testid="day-filter"
+        >
+          {[{ dateKey: 'all', dateLabel: 'All days' }, ...groups].map((g) => (
+            <button
+              key={g.dateKey}
+              type="button"
+              aria-pressed={dayFilter === g.dateKey}
+              onClick={() => setDayFilter(g.dateKey)}
+              className={`rounded-full border px-3 py-1.5 text-[13px] font-medium ${
+                dayFilter === g.dateKey
+                  ? 'border-navy-900 bg-navy-900 text-white'
+                  : 'border-sand-200 bg-white text-navy-700 hover:bg-sand-50'
+              }`}
+            >
+              {g.dateLabel}
+            </button>
+          ))}
+        </div>
+        {visibleGroups.map((group) => (
           <section
             key={group.dateKey}
             className="rounded-[16px] border border-sand-200 bg-white p-4 shadow-[var(--shadow-card)] sm:p-5"
