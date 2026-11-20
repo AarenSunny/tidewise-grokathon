@@ -82,9 +82,9 @@ function deriveSources(
   health: AdapterHealth[],
   daySunsetTime: string,
 ): SpotWindowViewModel['sources'] {
-  const tideHealth = health.find((h) => h.source_name === 'noaa_tides');
+  const tideHealth = health.find((h) => h.source_name === 'coops_tides');
   const closureHealth = health.find((h) => h.source_name === 'cdph_shellfish');
-  const daylightHealth = health.find((h) => h.source_name === 'daylight_table');
+  const daylightHealth = health.find((h) => h.source_name === 'daylight_sunrise_api');
   const closureGate = getGate(window.gates, 'no_biotoxin_closure');
 
   const tideUpdated = tideHealth?.last_success_at
@@ -132,7 +132,7 @@ function buildFreshnessSummary(
   health: AdapterHealth[],
   unverifiedSpotNames: string[],
 ): DataFreshnessSummary {
-  const tideHealth = health.find((h) => h.source_name === 'noaa_tides');
+  const tideHealth = health.find((h) => h.source_name === 'coops_tides');
   const closureHealth = health.find((h) => h.source_name === 'cdph_shellfish');
 
   const tidesUpdatedAt = tideHealth?.last_success_at
