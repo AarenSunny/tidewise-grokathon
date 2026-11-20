@@ -42,6 +42,7 @@ export function App() {
   );
   const [loaded, setLoaded] = useState<LoadedPlannerData | null>(null);
   const [loadState, setLoadState] = useState<'loading' | 'ready'>('loading');
+  const [page, setPage] = useState<'planner' | 'score'>('planner');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -138,7 +139,7 @@ export function App() {
         }
       />
 
-      {loaded && loaded.exampleBannerText && (
+      {page === 'planner' && loaded && loaded.exampleBannerText && (
         <div
           role="status"
           data-testid={bannerTestId}
@@ -151,9 +152,42 @@ export function App() {
       )}
 
       <main className="mx-auto max-w-[1360px] px-4 pt-5 pb-12 sm:px-6 lg:px-8 lg:pt-7">
-        <ScoreWindowCard />
+        <div
+          role="tablist"
+          aria-label="TideWise views"
+          className="inline-flex gap-1 rounded-[12px] border border-sand-200 bg-white p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={page === 'planner'}
+            onClick={() => setPage('planner')}
+            className={`rounded-[9px] px-3.5 py-1.5 text-sm font-medium ${
+              page === 'planner'
+                ? 'bg-navy-900 text-white shadow-xs'
+                : 'text-navy-700 hover:bg-sand-100'
+            }`}
+          >
+            Planner
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={page === 'score'}
+            onClick={() => setPage('score')}
+            className={`rounded-[9px] px-3.5 py-1.5 text-sm font-medium ${
+              page === 'score'
+                ? 'bg-navy-900 text-white shadow-xs'
+                : 'text-navy-700 hover:bg-sand-100'
+            }`}
+          >
+            Quick score
+          </button>
+        </div>
 
-        {loadState === 'loading' || !viewModel || !loaded ? (
+        {page === 'score' ? (
+          <ScoreWindowCard />
+        ) : loadState === 'loading' || !viewModel || !loaded ? (
           <div
             data-testid="planner-loading"
             className="mt-5 rounded-[16px] border border-sand-200 bg-white px-5 py-10 text-center shadow-[var(--shadow-card)]"
