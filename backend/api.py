@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,11 +17,13 @@ from backend.models.api import (
     QueryRequest,
     QueryResponse,
     RecommendResponse,
+    ScoreWindowResponse,
     SpotsResponse,
 )
 from backend.models.common import Activity
 from backend.orchestrator import Orchestrator
 from backend.redact import redact
+from backend.scorers.window import collect_signals, resolve_spot, score_window
 from backend.settings import get_settings
 
 settings = get_settings()
@@ -74,6 +76,25 @@ async def post_query(body: QueryRequest) -> QueryResponse:
     return await orchestrator.query(body.text)
 
 
+@app.get("/score", response_model=ScoreWindowResponse)
+async def get_score(
+    activity: Activity = Query(...),
+    location: str | None = Query(None, max_length=120),
+    spot: str | None = Query(None, max_length=64),
+) -> ScoreWindowResponse:
+    """One non-empty window for an activity and place (live feeds, then fallback)."""
+    try:
+        place = resolve_spot(region, activity, spot_id=spot, location=location)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown location: {exc}") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    now = datetime.now(timezone.utc)
+    signals = await collect_signals(registry, place, now, now + timedelta(hours=36))
+    return score_window(activity, place, now=now, **signals)
+
+
 @app.get("/recommend", response_model=RecommendResponse)
 async def get_recommend(
     activity: Activity = Query(...),
@@ -83,6 +104,7 @@ async def get_recommend(
     lat: float | None = None,
     lon: float | None = None,
     limit: int = Query(6, ge=1, le=15),
+    gear: str | None = None,
 ) -> RecommendResponse:
     """Nearby lat/lon is optional. Returns live scored windows for the activity."""
     if start is not None and start.tzinfo is None:
@@ -107,6 +129,7 @@ async def get_recommend(
             start=start,
             end=end,
             limit=limit,
+            gear=gear,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Unknown spot: {spot}") from None

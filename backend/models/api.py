@@ -29,6 +29,9 @@ class QueryResponse(BaseModel):
     recommendations: list[SpotRecommendation] = Field(default_factory=list)
     explanation: Optional[str] = None
     health: list[AdapterHealth] = Field(default_factory=list)
+    scorer: Optional[str] = None
+    note: Optional[str] = None
+    mode: str = "live"
 
 
 class RecommendResponse(BaseModel):
@@ -40,6 +43,9 @@ class RecommendResponse(BaseModel):
     health: list[AdapterHealth] = Field(default_factory=list)
     note: Optional[str] = None
     distances_km: dict[str, float] = Field(default_factory=dict)
+    # additive (phase3-e2e): which scorer produced the windows; "activity_scorers" or "unavailable"
+    scorer: Optional[str] = None
+    mode: str = "live"
 
     @field_validator("start", "end", mode="after")
     @classmethod
@@ -58,3 +64,28 @@ class HealthResponse(BaseModel):
 class SpotsResponse(BaseModel):
     region_id: str
     spots: list[Spot]
+
+
+class ScoreWindowResponse(BaseModel):
+    """One recommended window. Always populated — callers must not return an empty window."""
+
+    activity: Activity
+    location: str
+    spot_id: str
+    start: datetime
+    end: datetime
+    score: float = Field(ge=0.0, le=100.0)
+    reason: str = Field(min_length=1)
+
+    @field_validator("start", "end", mode="after")
+    @classmethod
+    def _aware(cls, v: datetime) -> datetime:
+        return require_aware(v)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason_text(cls, v: str) -> str:
+        text = v.strip()
+        if not text:
+            raise ValueError("reason must be non-empty")
+        return text

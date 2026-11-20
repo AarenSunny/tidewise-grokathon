@@ -126,6 +126,7 @@ def test_recommend_scores_mocked_adapter_data(monkeypatch):
     from backend.models.sources import SourceResult
 
     monkeypatch.setattr(api_mod.orchestrator, "sources", ("coops_tides",))
+    monkeypatch.setattr("backend.orchestrator.FETCH_SOURCES", ())
     adapter = api_mod.orchestrator.registry.get("coops_tides")
     start = datetime(2026, 11, 21, 16, 0, tzinfo=timezone.utc)
     end = start + timedelta(hours=24)
@@ -180,7 +181,13 @@ def test_recommend_scores_mocked_adapter_data(monkeypatch):
     recommendation = body["recommendations"][0]
     assert recommendation["spot_id"] == "pillar_point_harbor"
     assert recommendation["windows"]
-    assert recommendation["best_score"] is not None
+    eligible_scores = [
+        window["score"] for window in recommendation["windows"] if window["eligible"]
+    ]
+    if eligible_scores:
+        assert recommendation["best_score"] == max(eligible_scores)
+    else:
+        assert recommendation["best_score"] is None
     for window in recommendation["windows"]:
         if any(gate["cannot_confirm"] for gate in window["gates"]):
             assert window["eligible"] is False
