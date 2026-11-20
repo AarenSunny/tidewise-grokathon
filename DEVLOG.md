@@ -181,3 +181,19 @@ Branched from rebased `phase3-wip` onto `origin/main`. Cloud agents A/B own conc
 
 ### Tests
 44 passed (pytest). Ruff not previously configured; added minimal `[tool.ruff]` excluding A/B adapter paths.
+
+### REVIEW_2 triage (core track) — `REVIEWS/REVIEW_2.md`
+| # | Decision | What / why |
+| --- | --- | --- |
+| N1 (CDPH ArcGIS can't represent closures) | **owner: Agent B** | not touched here. We retract "prefer ArcGIS" for the *gate*: probe report now states the layers are static pins and CDPH HTML fails strict TLS, so the closure gate is `cannot_confirm`. |
+| N2 (BeachWatch stale) | **owner: Agent B** | not touched here. |
+| N3 (crabbing vs CCR / species / gear) | **fix (tests) + verified config** | `region.yaml` already flags `dungeness_prohibited` on every SF/San Pablo Bay spot and none offers `crabbing`; `seasons.yaml` (B) carries the dated trap restriction and gear table. Added `tests/test_crabbing_bay_block.py`: API 400 for crabbing at each bay spot, nearby search from *inside* the Bay never returns them, and `crabbing_season_status` is a hard **fail** (not `cannot_confirm`) for all gear. No hoop-net count is shown anywhere. |
+| N4 (frozen feeds marked ok) | **fix** | `scripts/probes/run_all.py` now records the data's own timestamp, compares with per-source budgets (`MAX_AGE_HOURS`, equal to the adapters' `max_age`, enforced by `tests/test_probe_freshness.py`), and prints a **Verdict**: OK / STALE / UNKNOWN_AGE / FAIL / N/A. Live run 16:0x PST: C-HARM 420 h → **STALE**, VIIRS 8-day chl 264 h → **STALE**, NDBC 46239 621 h → **STALE**, MUR SST 39 h → OK. |
+| N5 (ERDDAP "outage" wording) | **fix (probe side)** | 404/502/503 are reported as transient/intermittent (flapping observed: MUR anomaly returned 503 again in the same run that returned 200 for MUR SST). `DATA_SOURCES.md` wording is research-owned; flagged, not edited. |
+| N6 (insecure TLS helper) | **fix** | `insecure=` and `ssl._create_unverified_context()` deleted from `run_all.py`. CDPH TLS probe is strict-only and now reports **FAIL** (missing intermediate cert) instead of ok-after-insecure-retry. A test greps for `verify=False`, `_create_unverified_context`, `insecure=True`, `CERT_NONE`. |
+| N7 latency budgets | **defer** | per-adapter timeouts belong to A/B adapter files; base supports per-class `timeout_s`/`overall_deadline_s`. |
+| N8 time module / legal clamming hours | **defer** | features/scorers owner; core already normalizes datetimes to aware UTC. |
+| N9 deployment hardening | **partial** | CORS allowlist from env, `DEBUG` default false, `/health` error redaction, `QueryRequest` max_length done; rate limit, pinned deps, CI, persisted cache **deferred**. |
+| N10 null satellite pixels | **defer** | adapter-owned (neighbourhood search). |
+| N11 emails in metadata | **won't fix** | history rewrite needs force-push; owner decision. Use GitHub noreply going forward. |
+| N12 doc drift | **fix** | REVIEW_1 triage table + this table in DEVLOG; REPORT.md labelled as a dated snapshot. |

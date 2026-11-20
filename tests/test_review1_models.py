@@ -5,11 +5,10 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from backend.models.common import Confidence, GateResult
+from backend.models.common import Activity, Confidence, GateResult, SourceStatus
 from backend.models.intent import QueryIntent
 from backend.models.scoring import ScoredWindow
 from backend.models.sources import SourceResult
-from backend.models.common import SourceStatus, Activity
 
 
 def test_gate_cannot_confirm_forbids_passed_true():

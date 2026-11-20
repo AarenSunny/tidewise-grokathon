@@ -10,13 +10,13 @@ import pytest
 
 from backend.adapters.base import PermanentFetchError, SourceAdapter
 from backend.adapters.coops import CoopsTideAdapter, TidePayload
-from backend.adapters.erddap import ErddapChlAdapter, ChlPayload
+from backend.adapters.erddap import ChlPayload, ErddapChlAdapter
 from backend.adapters.ndbc import NdbcAdapter, parse_ndbc_value
 from backend.cache.memory import MemoryTTLCache
 from backend.health import HealthMonitor
 from backend.models.common import Activity, SourceStatus
-from backend.models.spots import Spot
 from backend.models.sources import SourceResult
+from backend.models.spots import Spot
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

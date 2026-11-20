@@ -13,7 +13,7 @@ from backend.cache.memory import MemoryTTLCache
 from backend.models.common import Activity, SourceStatus
 from backend.models.spots import Spot
 from backend.redact import redact
-from backend.settings import Settings, get_settings
+from backend.settings import Settings
 
 
 def _spot() -> Spot:
@@ -128,7 +128,7 @@ def test_redact_strips_key_query_and_paths():
 
 
 def test_spot_id_validation():
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):  # pydantic.ValidationError subclasses ValueError
         Spot(id="Bad-ID", name="x", lat=1, lon=2, activities=[])
 
 
