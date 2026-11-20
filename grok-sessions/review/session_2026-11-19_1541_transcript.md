@@ -1,6 +1,7 @@
 # Review session transcript export
 
 - Exported: 2026-11-19 1541 America/Los_Angeles
+- Refreshed: 2026-11-19 1606 America/Los_Angeles (full session through REVIEW_2, REVIEW_3, and PR #3 work)
 - Agent: Review (Grok Bot)
 - Repo: AarenSunny/tidewise-grokathon
 - Source: Grok Bot session transcript, exported by the coordinating bot. Long tool inputs/outputs are truncated; tokens, emails, local paths, internal IDs, and personal names (other than GitHub handles) are redacted.
@@ -316,3 +317,392 @@ The phase 1 review is pushed and rates the project 3 out of 10 for readiness. It
 Finding #17 is a personal email in the author details of the repo's first commit, which is public. Removing it would mean rewriting git history, so that's your call.
 
 Main has already moved on to the Phase 2 commits (`9fa1e7b` and `0528875`), which I haven't reviewed yet. I'll review them and the two PRs as they come in. I couldn't export my own transcript, so the log is a written stand-in. **Please export the Grok Bot session now.**
+
+
+## User
+
+[agent] A non-urgent message from another of the user's agents: Manager, was waiting.
+
+Manager: From the user: you may create another bot to help with your work if it genuinely helps, but keep it lean since token usage matters. Only add one for a clearly separable chunk, give it a narrow scope, and note what it owns. Map/scorer PR links will come when they open.
+
+## User
+
+<timestamp>Thursday, Nov 19, 2026, 3:50 PM (UTC-8)</timestamp>
+<user_query>
+[agent] A message just arrived from another of the user's agents: Manager.
+
+Manager: the user says keep working. Next: review Phase 2 on main (0d08bf3 probes + scripts/probes/REPORT.md, 0528875, 9fa1e7b) and Research's DATA_SOURCES.md rounds 2 and 3 (6265787, ed08814), checking source claims against what adapters/scorers will rely on. Write it as REVIEWS/REVIEW_2.md. Soon Build will push branch `phase3-wip`, and two Cursor cloud agents will open PRs off it for the adapters, plus the existing map and scorers PRs. I'll send links as they open. Prioritize checking that REVIEW_1 blockers #1-#6 are actually fixed there.
+</user_query>
+
+## Review bot
+
+### Reasoning
+
+I'm going to keep the same executor going rather than spinning up a new one.
+
+### Tool call: CallDynamicTool
+
+```
+{
+  "namespace": "cursor.agents",
+  "toolName": "Task",
+  "arguments": {
+    "description": "TideWise phase 2 review",
+    "subagent_type": "executor",
+    "resume": "sand-subagent-[ID]",
+    "prompt": "Next: the Phase 2 review, written as REVIEWS/REVIEW_2.md. Use your review clone ([LOCAL_PATH]) and `git pull --rebase` first. Record the HEAD hash you review at the top of the report.\n\nScope:\n- Phase 2 commits on main: 0d08bf3 (probes plus scripts/probes/REPORT.md), 0528875, and 9fa1e7b.\n- Research's DATA_SOURCES.md rounds 2 and 3 (6265787, ed08814). Check each source claim against the live endpoints and against what the adapters and scorers will actually rely on…\n- Re-review: for each REVIEW_1 finding, especially #1–#6, mark it fixed, partially fixed, or not fixed, with evidence (file:line).\n…"
+    … [truncated]
+  }
+}
+```
+
+### Tool result: CallDynamicTool
+
+```
+Subagent is running in the background. When you end your turn, you will be automatically sent the subagent's final response upon its completion, so do not wait for it - either end your turn or work on something else.
+
+Agent ID: sand-subagent-[ID] (can be used with the `resume` parameter to send a follow-up after it completes)
+```
+
+## Review bot → user
+
+Starting the phase 2 review now. It covers the probes, the other two Phase 2 commits and rounds 2 and 3 of `DATA_SOURCES.md`, plus a check of which phase 1 findings are fixed. It'll go in `REVIEWS/REVIEW_2.md`.
+
+## User
+
+[agent] A non-urgent message from another of the user's agents: Manager, was waiting.
+
+Manager: FYI, scope expanding per the user: explainable score factors, 48-72h best windows, /ask plain-English Q&A, /alerts, DEMO_MODE cached replay, satellite map overlay, and safety-block banners. When reviewing, check that factors cite real sources with honest observed_at, that the /ask answers can't invent data, and that DEMO_MODE can't mask a real closure as safe. Phase 3 PRs: Agent A bc-c70f4171 (coops/ndbc/nws/nearby) and B bc-0dca8965 (erddap/charm/cdph/beachwatch/uv/daylight/seasons), plus Build's phase3-core branch. Links will come when they open.
+
+## User
+
+<timestamp>Thursday, Nov 19, 2026, 3:56 PM (UTC-8)</timestamp>
+<user_query>
+[A background task just completed] A background task you started has finished.
+
+Background task "Next: the Phase 2 review, written as REVIEWS/REVIEW_2.md. Use your review clone…" (executor) finished:
+The Phase 2 review is written, committed and pushed.
+
+**Reviewed hash:** `62185cd9c7d7dcf5a192e023e260634bfb14234d`. That is `3b25a4d` (the deploy PR merge) plus one build session-export commit. Scope covered `0d08bf3`, `0528875` and `9fa1e7b`, the research rounds `6265787` and `ed08814`, and the deploy PR, because it puts main on a public host. The `phase3-wip` branch exists on origin; I did not review it, so every fix status below refers to main only.
+
+**Commits (both pushed to origin/main):**
+- `073b484` "review: phase 2 findings" adds `REVIEWS/REVIEW_2.md`.
+- `a240e68` "review: phase 2 session log" adds `grok-sessions/review/session_2026-11-19_1556.md`. It is scrubbed (I grep-checked it) and is a substitute log, so please export the Grok Bot session.
+
+**Verification:**
+- **Tests:** `pytest` gives 3 passed, unchanged.
+- **Probe rerun:** I reran `run_all.py` from a copy outside the repo. It passed 26/26 at 15:51 PST.
+- **Live endpoints:** I rechecked every new DATA_SOURCES claim against the live endpoints (ERDDAP, USNO, data.ca.gov, the CDPH ArcGIS layers and HTML page, CO-OPS, NDBC, EPA UV).
+- **Regulations:** I fetched 14 CCR §29.85 and §29.20 from Cornell LII, and both match the quotes in the doc verbatim. I did not re-fetch §29.80, §29.25, §29.35, §29.40 or the CDFW pages.
+
+**Finding count (12 new, numbered N1–N12):** 2 blocker, 8 major, 2 minor.
+
+**Top 3:**
+1. **N1 (blocker):** The clamming shellfish-closure gate has no usable live source. The "stable" ArcGIS layers are static: 21 county pins last edited 2020, plus one Channel Islands feature last edited July 2025. Neither has any status field. The real advisories are HTML news items behind an incomplete TLS cert...e | Not fixed |
+| 7 | Indiscriminate retries | Not fixed |
+| 8 | No validation layer, models accept junk | Not fixed |
+| 9 | HealthMonitor disconnected from adapters | Not fixed |
+| 10 | Time-zone contract undefined | Not fixed (more conventions added, N8) |
+| 11 | Gate coverage gaps | Not fixed (new evidence, N3) |
+| 12 | Spot data mismatches the research | Not fixed |
+| 13 | Error strings with URLs logged and exposed | Not fixed (exposure grew with the public deploy) |
+| 14 | No single-flight or concurrency control | Not fixed |
+| 15 | Debug default-on, wildcard CORS, config never loaded | Partially mitigated (`DEBUG=false` in `render.yaml:18-19` only; `.env.example` and CORS unchanged) |
+| 16 | Tests don't match claims | Not fixed |
+| 17 | Personal email in git history | Not fixed (more addresses in the new merge commits, N11) |
+| 18 | CDPH TLS verification disabled | Not fixed (insecure helper now in committed `run_all.py:56,492`) |
+| 19 | Base-class quality, unpinned deps | Not fixed (`render.yaml` now installs the unpinned requirements) |
+
+**Blockers hit:** None. `git diff f50ae9d..HEAD` shows no changes under `backend/` or `tests/`, which is why nothing from REVIEW_1 is fixed in main.
+</user_query>
+
+## Review bot
+
+### Reasoning
+
+I'm going to send this to the Manager with priority set, since Build needs to act on it, and let the user know too. I'll also save the scope expansion to memory.
+
+### Tool call: CallDynamicTool
+
+```
+{
+  "namespace": "cursor.agents",
+  "toolName": "SendToAgent",
+  "arguments": {
+    "target_id": "[ID]",
+    "priority": true,
+    "message": "Phase 2 review is pushed. It covers main at 62185cd and is in REVIEWS/REVIEW_2.md (commit 073b484), with the log at grok-sessions/review/session_2026-11-19_1556.md (a240e68). Readiness is still 3/10. There are 12 new findings (N1–N12): 2 blockers, 8 major, 2 minor. None of the REVIEW_1 findings are fixed in main, because backend/ and tests/ haven't changed since f50ae9d. I haven't reviewed phase3-wip yet.\n\nFor Build and Research:\n- N1 (blocker): The shellfish-closure gate has no usable live source. The CDPH ArcGIS layers are static 2020 pins with no status field, and the real advisories are HTML news items behind a broken TLS chain.\n- N2 (blocker): BeachWatch, the bacteria gate's only source, ends in March 2026. With default-deny, swimming can never be eligible. With stale data tolerated, the gate passes on March data.\n- N3 (major): sf_bay lists crabbing, but CCR §29.85(b)(1) bans Dungeness crab in SF Bay, and the config has no species or gear dimension for the Zones 1–5 trap ban.\n- N4/N5: The probes mark frozen feeds as ok (C-HARM is 17 days stale, VIIRS 10 days), and the doc's 'C-HARM DOWN' claim is wrong because the feed flaps.\n\nQuick win: mark the shellfish and bacteria gates cannot_confirm, add a per-source max_age and a frozen-feed check to the probes, remove the insecure TLS option from run_all.py, and correct the C-HARM note.\n\nThe new scope is noted. On the Phase 3 PRs I'll check that factors cite real sources with an honest observed_at, that /ask can't invent data, and that DEMO_MODE can't show a real closure as safe. Send the bc-c70f4171, bc-0dca8965 and phase3-core links when they're up.\n\nPlease tell the user the log is a written substitute and the user should export the Grok Bot session now."
+  }
+}
+```
+
+### Tool result: CallDynamicTool
+
+```
+Sent to Manager. This is asynchronous — if they reply, it'll arrive later as a new message that wakes you; don't wait on it now.
+```
+
+### Tool call: UpdateMemory
+
+```
+{
+  "action": "write",
+  "type": "workstream",
+  "meta": {
+    "name": "TideWise hackathon review"
+  },
+  "fact": "On Nov 19, 2026, the TideWise scope expanded to explainable score factors, 48–72h best windows, /ask Q&A, /alerts, DEMO_MODE cached replay, a satellite overlay and safety-block banners. In reviews I must check that factors cite real sources with an honest observed_at, that /ask can't invent data, and that DEMO_MODE can't show a real closure as safe. Phase 3 comes as PRs from cloud agents bc-c70f4171 (coops/ndbc/nws/nearby) and bc-0dca8965 (erddap/charm/cdph/beachwatch/uv/daylight/seasons) plus Build's phase3-core branch. The user allows me a helper bot only for a clearly separable, narrow chunk, because token use matters."
+}
+```
+
+### Tool result: UpdateMemory
+
+```
+Remembered in your memory with this person (workstream): On Nov 19, 2026, the TideWise scope expanded…
+… [truncated]
+```
+
+## Review bot → user
+
+The phase 2 review is pushed. Readiness is still 3 out of 10, and none of the phase 1 findings are fixed on `main` yet, since no app code or tests have changed since phase 1. It reviews `62185cd` and adds 12 findings: 2 blockers, 8 major and 2 minor. The report is `REVIEWS/REVIEW_2.md` and the log is `grok-sessions/review/session_2026-11-19_1556.md`.
+
+- **Blocker N1:** The shellfish closure check has no usable live source. The state's map layers are static pins from 2020 with no status field, and the real advisories are only news pages on a site with a broken security certificate.
+- **Blocker N2:** BeachWatch, the only source for the swimming bacteria check, ends in March 2026. Swimming either can never be recommended, or it gets approved using March data.
+- **Major N3:** The San Francisco Bay spot lists crabbing, but state regulations ban Dungeness crab in the Bay. The config also can't tell species or gear apart, which matters because a trap ban is in effect.
+- **Majors N4 and N5:** The data checks mark frozen feeds as fine, including an algal bloom forecast 17 days old. The doc's claim that the bloom feed is down is wrong too, since it went back and forth from failing to working within about 20 minutes.
+
+The quickest win is to mark the shellfish and bacteria checks as "can't confirm" for now and give each source a maximum data age. Next I'll review the Phase 3 PRs and check whether the phase 1 blockers are fixed there. I couldn't export my own transcript, so the log is a written stand-in. **Please export the Grok Bot session now.**
+
+## User
+
+[agent] A non-urgent message from another of the user's agents: Manager, was waiting.
+
+Manager: Routed: N1/N2/N4/N5 to Agent B (cdph/beachwatch/erddap/charm), N3/N4/N5 probes and TLS to Build, and the live closure/bacteria source plus the C-HARM note to Research. REVIEW_1 fixes are on Build's branches phase3-wip (f66f82b) and phase3-core, not main yet. You can review phase3-wip now: https://github.com/AarenSunny/tidewise-grokathon/tree/phase3-wip. PR links come when they open. I'll export your session again at the end.
+
+## User
+
+<timestamp>Thursday, Nov 19, 2026, 3:57 PM (UTC-8)</timestamp>
+<user_query>
+[agent] A message just arrived from another of the user's agents: Manager.
+
+Manager: Next task: review branch phase3-wip (f66f82b, https://github.com/AarenSunny/tidewise-grokathon/tree/phase3-wip), which is where Build's REVIEW_1 fixes and Phase 3 adapters live, and check #1-#6 there. Write it as REVIEW_3.md.
+</user_query>
+
+## Review bot
+
+### Reasoning
+
+I'm reviewing the phase3-wip branch now. The rules call for saving the review in REVIEWS/ and pushing it, and since reviews go to main, I'll commit it there rather than on phase3-wip. After that I'll resume the executor.
+
+### Tool call: CallDynamicTool
+
+```
+{
+  "namespace": "cursor.agents",
+  "toolName": "Task",
+  "arguments": {
+    "description": "TideWise phase3-wip review",
+    "subagent_type": "executor",
+    "resume": "sand-subagent-[ID]",
+    "prompt": "Next: REVIEWS/REVIEW_3.md, a review of branch phase3-wip at f66f82b (fetch origin; if the branch has moved, review its new HEAD and record the hash). Branch: https://github.com/AarenSunny/tidewise-grokathon/tree/phase3-wip. This branch holds Build's REVIEW_1 fixes and the Phase 3 adapters.\n\nPriorities, in order:\n1. Verify REVIEW_1 #1–#6 against the code, then run the tests…\n2. New code: run the original 10-point checklist on the adapters…\n…"
+    … [truncated]
+  }
+}
+```
+
+### Tool result: CallDynamicTool
+
+```
+Subagent is running in the background. When you end your turn, you will be automatically sent the subagent's final response upon its completion, so do not wait for it - either end your turn or work on something else.
+
+Agent ID: sand-subagent-[ID] (can be used with the `resume` parameter to send a follow-up after it completes)
+```
+
+## Review bot → user
+
+Now reviewing `phase3-wip` at `f66f82b`, where Build's phase 1 fixes and the Phase 3 adapters live. I'm checking blockers #1–#6 first, and the review will go in `REVIEWS/REVIEW_3.md`.
+
+## User
+
+<timestamp>Thursday, Nov 19, 2026, 4:02 PM (UTC-8)</timestamp>
+<user_query>
+[agent] A message just arrived from another of the user's agents: Manager.
+
+Manager: The scorers PR is open: https://github.com/AarenSunny/tidewise-grokathon/pull/3 (branch cursor/activity-scorers-e323; the agent is still pushing updates for factors and best windows). Please review it alongside phase3-wip: gate deny-by-default, cannot_confirm handling, the factor schema, the bloom thresholds per region, and Dungeness gear and bay rules. Note mismatches with Build's models and adapters. Prioritize this, because the teammates' frontend is blocked on a working /recommend.
+</user_query>
+
+## Review bot
+
+### Reasoning
+
+I'm going to hand the PR #3 review to a second executor, since the current one is tied up on phase3-wip and the PR is a separable chunk. I'll write its output to REVIEWS/REVIEW_PR3.md and keep the prompt self-contained enough that the new executor can pick up from the parent conversation. I'm not posting anything as a PR comment, since the rules limit me to files in REVIEWS.
+
+### Tool call: CallDynamicTool
+
+```
+{
+  "namespace": "cursor.agents",
+  "toolName": "Task",
+  "arguments": {
+    "description": "TideWise scorers PR #3 review",
+    "subagent_type": "executor",
+    "model": "high",
+    "prompt": "Review the TideWise scorers PR as the skeptical reviewer defined in the user's message t0u (same rules as the parent conversation): https://github.com/AarenSunny/tidewise-grokathon/pull/3, branch cursor/activity-scorers-e323. The cloud agent is still pushing commits, so record the PR head hash you reviewed. This is urgent because the frontend is blocked on a working /recommend. Be fast and lean.\n\nSetup: use your own clone at [LOCAL_PATH]. Don't touch [LOCAL_PATH], which another review is using, or [LOCAL_PATH], which is Build's tree.\n\nFocus:\n1. Gates deny by default…\n7. Mismatches with Build's models and adapters on branch phase3-wip…\nWrite REVIEWS/REVIEW_PR3.md and commit it to main (pull --rebase, commit \"review: PR #3 scorers findings\", push).\n…"
+    … [truncated]
+  }
+}
+```
+
+### Tool result: CallDynamicTool
+
+```
+Subagent is running in the background. When you end your turn, you will be automatically sent the subagent's final response upon its completion, so do not wait for it - either end your turn or work on something else.
+
+Agent ID: sand-subagent-[ID] (can be used with the `resume` parameter to send a follow-up after it completes)
+```
+
+## Review bot → user
+
+Started on [the scorers PR](https://github.com/AarenSunny/tidewise-grokathon/pull/3) right away, alongside the `phase3-wip` review, since the frontend is waiting on a working `/recommend`. I'm checking how the safety checks handle missing data, the bloom limits, the crab rules and where it doesn't line up with Build's code. It'll go in `REVIEWS/REVIEW_PR3.md`.
+
+## User
+
+[agent] A non-urgent message from another of the user's agents: Manager, was waiting.
+
+Manager: The map frontend handoff is a draft PR: https://github.com/AarenSunny/tidewise-grokathon/pull/5 (cursor/leaflet-spots-map-a6d6). A teammate's bot now owns the frontend, so this is lower priority than PR #3 and phase3. When you get to it, check that it matches the API contract and never shows cannot_confirm as safe.
+
+## User
+
+<timestamp>Thursday, Nov 19, 2026, 4:04 PM (UTC-8)</timestamp>
+<user_query>
+[agent] A message just arrived from another of the user's agents: Manager.
+
+Manager: PR #3 is final from the scorer agent (merged with main, 93 tests pass, CI running). Build will merge it once CI is green unless you flag a blocker, so please post your verdict on #3 (blockers vs. non-blocking) to me as soon as you can.
+</user_query>
+
+## Review bot
+
+### Reasoning
+
+I'm telling the PR3 executor the PR is final so it re-pulls the head and sends the verdict early. I'm also asking Manager to hold the merge until my verdict comes in, since Build would be taking a consequential step, and I'll send Manager a priority message.
+
+### Tool call: CallDynamicTool
+
+```
+{
+  "namespace": "cursor.agents",
+  "toolName": "MessageSubagent",
+  "arguments": {
+    "subagent_id": "sand-subagent-[ID]",
+    "message": "Update: PR #3 is now final. It has been merged with main, and the agent says 93 tests pass and CI is running. Build will merge it once CI is green unless we flag a blocker. Fetch the final PR head and review that hash, then run the full test suite yourself. Speed matters most now: get to a blocker/non-blocking verdict first. Polish REVIEW_PR3.md after the verdict is solid, but still commit and push it."
+  }
+}
+```
+
+### Tool result: CallDynamicTool
+
+```
+Message delivered to subagent sand-subagent-[ID]. It will interrupt what it's doing, take your message into account, and keep working. You'll be revived with its result when it finishes, so don't wait on it.
+```
+
+### Tool call: CallDynamicTool
+
+```
+{
+  "namespace": "cursor.agents",
+  "toolName": "SendToAgent",
+  "arguments": {
+    "target_id": "[ID]",
+    "priority": true,
+    "message": "My review of PR #3 is under way on the final head, and I'll send the verdict (blockers vs. non-blocking) the moment it's done. Since green CI only shows the PR's own tests pass, please ask Build to hold the merge until my verdict arrives. The gates' deny-by-default behavior and the mismatches with phase3-wip are what I'm checking adversarially. PR #5 (the map) is queued after #3 and phase3-wip."
+  }
+}
+```
+
+### Tool result: CallDynamicTool
+
+```
+Sent to Manager. This is asynchronous — if they reply, it'll arrive later as a new message that wakes you; don't wait on it now.
+```
+
+## Review bot → user
+
+I'm checking the final version of [the scorers PR](https://github.com/AarenSunny/tidewise-grokathon/pull/3) and will send a merge verdict as soon as I have it. Its own passing tests don't prove the safety checks hold up, so I've asked that Build wait for the verdict before merging. [The map PR](https://github.com/AarenSunny/tidewise-grokathon/pull/5) is next in line after this and the `phase3-wip` review.
+
+## User
+
+<timestamp>Thursday, Nov 19, 2026, 4:05 PM (UTC-8)</timestamp>
+<user_query>
+[A background task just completed] A background task you started has finished.
+
+Background task "Next: REVIEWS/REVIEW_3.md, a review of branch phase3-wip at f66f82b (fetch orig…" (executor) finished:
+Phase 3 review is committed and pushed to main (not `phase3-wip`). Please export the Grok Bot session now: the real transcript can't be exported from here, so the log is a detailed substitute.
+
+**Hashes**
+- **Reviewed:** `phase3-wip` had moved to `7c1af7d`. The only change after `f66f82b` is a session export, so all code reviewed is `f66f82b`.
+- **Review commits on main:** `249fa7c` ("review: phase 3 findings"), then `2e4e03c` (a corrected tide claim plus an addendum).
+- **Session log commit:** `c7353a2`, file `grok-sessions/review/session_2026-11-19_1606.md`. It contains no emails, tokens, absolute paths or personal names.
+- **Branch relationship:** `phase3-wip` and `phase3-core` (`62b05bb`) both fork from `6265787`, and neither contains the other. During the review, main moved to `1c4831b`, which merged `phase3-core` (PR #4). I did not review core in depth. The C-HARM, currents and CDPH bugs are identical on core `62b05bb`, so they very likely carry over to main. Re-verify against main before relying on them.
+
+**Tests:** `phase3-wip` has 33 passed and 1 failed (`test_max_stale_age_returns_down`). `phase3-core` has 44 passed.
+
+**Counts:** 15 findings (P3-1 to P3-15): 1 blocker, 9 major, 5 minor.
+
+**REVIEW_1 #1–#6**
+
+| # | Status | Reason |
+|---|---|---|
+| 1 | Partial | `GateResult` rejects `passed` with `cannot_confirm`, and `eligible` defaults to False. `eligible=True` is still accepted with no gates or failing gates (`scoring.py:174-196`). |
+| 2 | Partial | Old `observed_at` becomes stale or down. `observed_at=None` or a future time stays ok (`base.py:120`). CDPH and EPA stamp `observed_at=now`. |
+| 3 | Partial | Every adapter overrides the cache key by station, prod...values.
+3. **P3-3 and P3-4 (major):** C-HARM uses the wrong variable names (live HTTP 500, down after 8 s). The CO-OPS currents adapter fails on the real response shape (`cp`). It also loses slack velocity of 0 and always requests today's data.
+
+**Not yet built, so not findings:** `/ask`, ExplainerBot, DEMO_MODE, scorers and gate engine on wip, an NWS adapter, and the map. No fixtures or mocks are reachable from the live path.
+
+**Limits:**
+- I re-checked the tide numbers at the end and corrected them in `2e4e03c`.
+- Two claims rest on earlier probes I didn't re-run: the NDBC cross-spot cache collision and the 5-concurrent-calls single-flight check.
+- The second ERDDAP mirror host is marked unverified in the report.
+
+**Summary**
+- **Top risk:** The CDPH adapter is fail-open for the clamming safety gate (P3-1), and base freshness ignores missing or future `observed_at` (P3-2).
+- **Quick win:** Fix three small bugs: the C-HARM variable `pseudo_nitzschia` (`charm.py:63`), the currents `cp` shape with an `is None` check for `Velocity_Major` (`coops.py:228-240`), and the NDBC cache key for spots with no buoy (`ndbc.py:43`). Also guard `_rehydrate` so the failing test passes.
+- **Readiness: 4/10.**
+</user_query>
+
+## Review bot
+
+### Reasoning
+
+I'm sending this to the Manager, marked priority, since Build has to act on it, and to the user as well. I also want to flag that phase3-core has been merged into main, which means a follow-up re-verification against main will be needed, but I won't start that yet.
+
+### Tool call: CallDynamicTool
+
+```
+{
+  "namespace": "cursor.agents",
+  "toolName": "SendToAgent",
+  "arguments": {
+    "target_id": "[ID]",
+    "priority": true,
+    "message": "REVIEW_3 is pushed to main: 249fa7c, with an addendum in 2e4e03c and the log in c7353a2. It covers phase3-wip f66f82b. Readiness is up to 4/10. There are 15 findings: 1 blocker, 9 major, 5 minor. On wip, 33 tests pass and 1 fails (test_max_stale_age_returns_down); on phase3-core, 44 pass.\n\nREVIEW_1 #1–#6: #4 is fixed, and #1, #2, #3, #5 and #6 are partial. #1 still accepts eligible=True with no gates or with failing gates (scoring.py:174-196). #6 doesn't bound a blocking sync call.\n\nFor Build and Agent B:\n- P3-1 (blocker): The CDPH adapter fails open. An ArcGIS error or empty body reads as 'no advisory', with ok and observed_at=now (cdph.py:127).\n- P3-2: Freshness is skipped when observed_at is None or in the future (base.py:120), so ERDDAP and C-HARM can return ok with every value None.\n- P3-3: C-HARM uses the wrong variable names (charm.py:63), so the live request returns HTTP 500.\n- P3-4: The CO-OPS currents adapter fails on the real 'cp' response shape, drops slack velocity of 0 (coops.py:228-240), and always requests today's data.\n- P3-5: NDBC cache key collides for spots with no buoy (ndbc.py:43).\n\nThe P3-1, P3-3 and P3-4 bugs are identical on phase3-core 62b05bb, which main has merged (1c4831b), so main very likely has them too. I'll re-verify on main next.\n\nPR #3 verdict still pending. Please keep the merge on hold. The user should export the Grok Bot session, since the log is a written substitute."
+  }
+}
+```
+
+### Tool result: CallDynamicTool
+
+```
+Sent to Manager. This is asynchronous — if they reply, it'll arrive later as a new message that wakes you; don't wait on it now.
+```
+
+## Review bot → user
+
+The phase 3 review of `phase3-wip` is pushed to `REVIEWS/REVIEW_3.md`, and readiness is up to 4 out of 10. Of the six phase 1 issues I asked to have checked first, one is fully fixed and five are partly fixed. It has 15 findings: 1 blocker, 9 major and 5 minor. On that branch, 33 tests pass and 1 fails, a test of the maximum age for stale data.
+
+- **Blocker P3-1:** The shellfish closure source fails open. If the state's map service errors or comes back empty, the app reads that as "no advisory" and treats the data as fresh, so clamming could be marked safe with no real data.
+- **P3-2:** The data age check is skipped when a reading has no observation time or a future one. So the satellite feeds can report everything as fine with every value missing.
+- **P3-3 and P3-4:** The algal bloom forecast asks for the wrong variable names, so the live request fails. The tidal current adapter breaks on the real response format, throws away zero-speed readings at slack tide, and always requests today's data.
+- **Phase 1 fixes:** The cap on how old cached data can be is fully fixed. The default-deny check is only partly fixed, because a window can still be marked eligible with no checks or with failing checks, and a hung blocking call still has no time limit.
+
+`main` has since merged the `phase3-core` branch. The P3-1, P3-3 and P3-4 bugs also appear on that branch, so they're probably on `main` now, and I'll confirm that next. The scorers PR verdict is still coming, and I've asked that the merge wait for it. **Please export the Grok Bot session now.**
