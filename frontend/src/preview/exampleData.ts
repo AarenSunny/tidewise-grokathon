@@ -8,6 +8,14 @@ import type {
   SpotDisplayMeta,
 } from '../types';
 
+export type PreviewScenario = 'default' | 'stale';
+
+export const LIVE_UNAVAILABLE_BANNER_TEXT =
+  'Live data unavailable — showing example data';
+
+export const PREVIEW_MODE_BANNER_TEXT =
+  'Preview mode — showing example data';
+
 export const EXAMPLE_DATA_BANNER_TEXT =
   'Example data — illustrative sample, not live conditions';
 
@@ -74,8 +82,13 @@ export const EXAMPLE_SPOTS: Spot[] = [
     shoreline_orientation_deg: 270,
     activities: ['clamming', 'crabbing', 'swimming', 'sailing'],
     tide_station_id: '9414131',
+    current_station_id: null,
     buoy_ids: ['46012'],
     nws_grid: 'MTR/81,96',
+    nws_zone: 'CAZ509',
+    county: 'San Mateo',
+    no_take: false,
+    dungeness_prohibited: false,
     notes: 'Half Moon Bay — outer harbor mudflats',
   },
   {
@@ -86,8 +99,13 @@ export const EXAMPLE_SPOTS: Spot[] = [
     shoreline_orientation_deg: 180,
     activities: ['clamming', 'sailing', 'crabbing', 'swimming'],
     tide_station_id: '9414750',
+    current_station_id: 's09010',
     buoy_ids: [],
     nws_grid: 'MTR/89,105',
+    nws_zone: 'CAZ006',
+    county: 'Alameda',
+    no_take: false,
+    dungeness_prohibited: true,
     notes: 'Alameda · SF Bay — wide sandy flat',
   },
   {
@@ -98,8 +116,13 @@ export const EXAMPLE_SPOTS: Spot[] = [
     shoreline_orientation_deg: 270,
     activities: ['clamming', 'swimming'],
     tide_station_id: '9414290',
+    current_station_id: null,
     buoy_ids: ['46026'],
     nws_grid: 'MTR/82,100',
+    nws_zone: 'CAZ509',
+    county: 'San Mateo',
+    no_take: false,
+    dungeness_prohibited: false,
     notes: 'Pacifica — exposed ocean cove',
   },
   {
@@ -110,8 +133,13 @@ export const EXAMPLE_SPOTS: Spot[] = [
     shoreline_orientation_deg: 265,
     activities: ['clamming'],
     tide_station_id: '9414131',
+    current_station_id: null,
     buoy_ids: ['46012'],
     nws_grid: 'MTR/81,96',
+    nws_zone: 'CAZ509',
+    county: 'San Mateo',
+    no_take: false,
+    dungeness_prohibited: false,
     notes: 'Half Moon Bay — illustrative confirmed closure example',
   },
 ];
@@ -143,11 +171,19 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
   spot_ids: ['half_moon_bay', 'sf_bay', 'pacifica', 'princeton_jetty'],
   start: '2026-11-21T12:00:00-08:00',
   end: '2026-11-21T18:00:00-08:00',
+  note: 'Example data — distances and conditions are illustrative, not live',
+  distances_km: {
+    half_moon_bay: 0,
+    princeton_jetty: 1.2,
+    pacifica: 18.7,
+    sf_bay: 32.4,
+  },
   recommendations: [
     {
       spot_id: 'half_moon_bay',
       spot_name: 'Pillar Point Harbor',
       best_score: 91,
+      distance_km: 0,
       windows: [
         {
           spot_id: 'half_moon_bay',
@@ -155,6 +191,7 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
           end: '2026-11-21T16:50:00-08:00',
           score: 91,
           eligible: true,
+          gates_all_passed: true,
           confidence: {
             value: 0.94,
             notes: ['NOAA tide & CDPH closure data fresh'],
@@ -207,6 +244,7 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
       spot_id: 'sf_bay',
       spot_name: 'Crown Beach',
       best_score: 82,
+      distance_km: 32.4,
       windows: [
         {
           spot_id: 'sf_bay',
@@ -214,6 +252,7 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
           end: '2026-11-21T16:50:00-08:00',
           score: 82,
           eligible: true,
+          gates_all_passed: true,
           confidence: {
             value: 0.92,
             notes: ['NOAA tide & CDPH closure data fresh'],
@@ -266,6 +305,7 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
       spot_id: 'pacifica',
       spot_name: 'Rockaway Beach',
       best_score: 0,
+      distance_km: 18.7,
       windows: [
         {
           spot_id: 'pacifica',
@@ -273,6 +313,7 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
           end: '2026-11-21T16:30:00-08:00',
           score: 74,
           eligible: false,
+          gates_all_passed: false,
           confidence: {
             value: 0.42,
             notes: ['CDPH shellfish closure feed unreachable since 6:10 AM'],
@@ -326,6 +367,7 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
       spot_id: 'princeton_jetty',
       spot_name: 'Princeton Jetty',
       best_score: 0,
+      distance_km: 1.2,
       windows: [
         {
           spot_id: 'princeton_jetty',
@@ -333,6 +375,7 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
           end: '2026-11-21T16:45:00-08:00',
           score: 0,
           eligible: false,
+          gates_all_passed: false,
           confidence: {
             value: 0.95,
             notes: ['Confirmed CDPH shellfish quarantine active'],
@@ -377,7 +420,7 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
   ],
   health: [
     {
-      source_name: 'noaa_tides',
+      source_name: 'coops_tides',
       status: 'ok',
       last_success_at: '2026-11-21T14:05:00-08:00',
       last_error_at: null,
@@ -397,7 +440,7 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
       forced_down: false,
     },
     {
-      source_name: 'daylight_table',
+      source_name: 'daylight_sunrise_api',
       status: 'ok',
       last_success_at: '2026-11-21T06:00:00-08:00',
       last_error_at: null,
@@ -408,3 +451,81 @@ export const EXAMPLE_RECOMMEND_RESPONSE: RecommendResponse = {
     },
   ],
 };
+
+/**
+ * Instant used to evaluate example-data source age, so badges stay stable
+ * regardless of the wall clock (the sample day is Saturday, Nov 21, 2026).
+ */
+export const EXAMPLE_FRESHNESS_AS_OF = new Date('2026-11-21T14:10:00-08:00');
+
+export function getPreviewScenario(
+  search: string = typeof window !== 'undefined' ? window.location.search : '',
+): PreviewScenario {
+  const value = new URLSearchParams(search).get('scenario');
+  return value === 'stale' ? 'stale' : 'default';
+}
+
+/**
+ * Robustness-proof variant: NOAA tides are stale and the CDPH shellfish
+ * adapter is down. Window gates still report some spots as passed/open so
+ * the view-model must refuse to treat that missing data as safe.
+ */
+export const EXAMPLE_STALE_RECOMMEND_RESPONSE: RecommendResponse =
+  structuredClone(EXAMPLE_RECOMMEND_RESPONSE);
+
+EXAMPLE_STALE_RECOMMEND_RESPONSE.health = [
+  {
+    source_name: 'coops_tides',
+    status: 'stale',
+    last_success_at: '2026-11-20T22:15:00-08:00',
+    last_error_at: '2026-11-21T13:55:00-08:00',
+    last_error: 'NOAA tides feed returned stale predictions (last success 22h ago)',
+    last_latency_ms: 4120,
+    consecutive_failures: 6,
+    forced_down: false,
+  },
+  {
+    source_name: 'cdph_shellfish',
+    status: 'down',
+    last_success_at: '2026-11-20T06:10:00-08:00',
+    last_error_at: '2026-11-21T13:58:00-08:00',
+    last_error: 'CDPH shellfish advisory feed unreachable',
+    last_latency_ms: null,
+    consecutive_failures: 14,
+    forced_down: false,
+  },
+  {
+    source_name: 'daylight_sunrise_api',
+    status: 'ok',
+    last_success_at: '2026-11-21T06:00:00-08:00',
+    last_error_at: null,
+    last_error: null,
+    last_latency_ms: 8,
+    consecutive_failures: 0,
+    forced_down: false,
+  },
+];
+
+EXAMPLE_STALE_RECOMMEND_RESPONSE.recommendations =
+  EXAMPLE_STALE_RECOMMEND_RESPONSE.recommendations.map((rec) => ({
+    ...rec,
+    windows: rec.windows.map((window) => ({
+      ...window,
+      confidence: {
+        ...window.confidence,
+        notes: [
+          ...window.confidence.notes,
+          'NOAA tide predictions stale; CDPH shellfish feed unavailable',
+        ],
+      },
+    })),
+  }));
+
+export function getExampleRecommendResponse(
+  scenario: PreviewScenario = 'default',
+): RecommendResponse {
+  return scenario === 'stale'
+    ? EXAMPLE_STALE_RECOMMEND_RESPONSE
+    : EXAMPLE_RECOMMEND_RESPONSE;
+}
+

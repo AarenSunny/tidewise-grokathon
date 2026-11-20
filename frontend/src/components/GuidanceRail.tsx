@@ -7,6 +7,8 @@ interface GuidanceRailProps {
   rankedSpots: SpotWindowViewModel[];
   selectedSpotId: string | null;
   onSelectSpot: (spot: SpotWindowViewModel) => void;
+  /** When true, the freshness line drops the "(sample)" suffix. */
+  isLiveChart?: boolean;
 }
 
 const RANKING_RULES = [
@@ -21,6 +23,7 @@ export function GuidanceRail({
   rankedSpots,
   selectedSpotId,
   onSelectSpot,
+  isLiveChart = false,
 }: GuidanceRailProps) {
   return (
     <aside className="space-y-4">
@@ -53,8 +56,8 @@ export function GuidanceRail({
         </ol>
 
         <div className="mt-4 border-t border-sand-200/80 pt-3 text-[11px] leading-relaxed text-navy-500">
-          Data freshness (sample): tides updated {freshness.tidesUpdatedAt} ·
-          closures checked {freshness.closuresCheckedAt}
+          Data freshness{isLiveChart ? '' : ' (sample)'}: tides updated{' '}
+          {freshness.tidesUpdatedAt} · closures checked {freshness.closuresCheckedAt}
           {freshness.warningNote ? ` · ${freshness.warningNote}` : ''}
         </div>
       </div>

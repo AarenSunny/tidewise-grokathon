@@ -4,7 +4,31 @@
 
 export type Activity = 'clamming' | 'crabbing' | 'swimming' | 'sailing';
 
-export type SourceStatus = 'ok' | 'stale' | 'down' | 'degraded';
+export type SourceStatus = 'ok' | 'stale' | 'down' | 'degraded' | 'unknown';
+
+export type DataMode = 'live' | 'preview' | 'fallback';
+
+export type SourceBadgeKind = 'ok' | 'stale' | 'unavailable' | 'degraded' | 'unknown';
+
+export interface SourceFreshnessBadge {
+  sourceName: string;
+  displayName: string;
+  status: SourceStatus;
+  /** Status after applying last_success_at age, in addition to the adapter's own status. */
+  effectiveStatus: SourceStatus;
+  badge: SourceBadgeKind;
+  badgeLabel: 'OK' | 'Source stale' | 'Unavailable' | 'Degraded' | 'Unknown';
+  lastSuccessAt?: string | null;
+  lastSuccessLabel: string;
+  ageLabel?: string;
+}
+
+export interface SpotSourceIssue {
+  sourceName: string;
+  badge: 'stale' | 'unavailable' | 'degraded' | 'unknown';
+  badgeLabel: 'Source stale' | 'Unavailable' | 'Degraded' | 'Unknown';
+  detail: string;
+}
 
 export interface GateResult {
   name: string;
@@ -35,7 +59,10 @@ export interface ScoredWindow {
   confidence: Confidence;
   gates: GateResult[];
   factors: FactorBreakdown[];
-  eligible: boolean;
+  /** Deny-by-default; treat missing as false. */
+  eligible?: boolean;
+  /** True only when there is at least one gate and every gate passed without cannot_confirm. */
+  gates_all_passed?: boolean;
   summary?: string | null;
 }
 
@@ -44,6 +71,7 @@ export interface SpotRecommendation {
   spot_name: string;
   windows: ScoredWindow[];
   best_score?: number | null;
+  distance_km?: number | null;
 }
 
 export interface AdapterHealth {
@@ -64,10 +92,12 @@ export interface RecommendResponse {
   end?: string | null;
   recommendations: SpotRecommendation[];
   health: AdapterHealth[];
+  note?: string | null;
+  distances_km: Record<string, number>;
 }
 
 export interface HealthResponse {
-  status: 'ok' | 'degraded' | 'down' | string;
+  status: 'ok' | 'degraded' | 'down' | 'unknown' | string;
   adapters: AdapterHealth[];
   checked_at: string;
 }
@@ -80,8 +110,13 @@ export interface Spot {
   shoreline_orientation_deg?: number | null;
   activities: Activity[];
   tide_station_id?: string | null;
+  current_station_id?: string | null;
   buoy_ids: string[];
   nws_grid?: string | null;
+  nws_zone?: string | null;
+  county?: string | null;
+  no_take?: boolean;
+  dungeness_prohibited?: boolean;
   notes?: string | null;
 }
 
@@ -191,7 +226,12 @@ export interface SpotWindowViewModel {
     label: string;
     detail: string;
     isWarning?: boolean;
+    badge?: SourceBadgeKind;
+    badgeLabel?: string;
   }>;
+  /** True only when closure is verified open and safety sources are not stale/down. */
+  isVerifiedSafe: boolean;
+  sourceIssues: SpotSourceIssue[];
   mapPosition: { x: number; y: number };
   rawWindow: ScoredWindow;
 }
@@ -213,6 +253,8 @@ export interface DataFreshnessSummary {
   tidesUpdatedAt: string;
   closuresCheckedAt: string;
   warningNote?: string;
+  sources: SourceFreshnessBadge[];
+  checkedAt?: string | null;
 }
 
 export interface PlannerDayInfo {
@@ -226,9 +268,18 @@ export interface PlannerDayInfo {
   sunsetMinutes: number;
 }
 
+export interface LiveSpotRef {
+  id: string;
+  name: string;
+}
+
 export interface PlannerViewModel {
   isExampleData: boolean;
   exampleBannerText: string;
+  dataMode: DataMode;
+  scoringPending: boolean;
+  backendNote?: string | null;
+  liveSpots: LiveSpotRef[];
   activity: Activity;
   day: PlannerDayInfo;
   availability: AvailabilityWindow;

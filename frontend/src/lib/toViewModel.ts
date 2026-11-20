@@ -3,16 +3,28 @@ import type {
   AvailabilityWindow,
   ClosureStatusView,
   DataFreshnessSummary,
+  DataMode,
   FactorBreakdown,
   GateResult,
   PlannerDayInfo,
   PlannerViewModel,
   RecommendResponse,
   ScoredWindow,
+  Spot,
   SpotDisplayMeta,
+  SpotSourceIssue,
   SpotWindowViewModel,
   TradeoffSummary,
 } from '../types';
+import {
+  buildSourceBadges,
+  closureSourceUnreliable,
+  collectSourceIssues,
+  effectiveSourceStatus,
+  findAdapter,
+  safetySourcesUnreliable,
+  showsStaleBadge,
+} from './sourceHealth';
 import {
   formatDuration,
   formatIsoToPacificTime,
@@ -38,27 +50,23 @@ function getGate(
 
 /**
  * Derive closure state from the backend's `no_biotoxin_closure` safety gate.
- * Missing data (`cannot_confirm = true`) NEVER counts as safe.
+ * Missing data (`cannot_confirm = true`) NEVER counts as safe. A stale, down,
+ * or unknown CDPH adapter also forces unverified — never present as open.
  */
-function resolveClosureStatus(gate?: GateResult): {
+function resolveClosureStatus(
+  gate: GateResult | undefined,
+  health: AdapterHealth[],
+  asOf: Date,
+): {
   status: ClosureStatusView;
   label: string;
   detail: string;
   alertTitle?: string;
   alertMessage?: string;
 } {
-  if (!gate || (!gate.passed && gate.cannot_confirm)) {
-    return {
-      status: 'unverified',
-      label: 'Unable to verify closure',
-      detail: 'Closure feed unreachable',
-      alertTitle: 'Unable to verify closure status',
-      alertMessage:
-        gate?.reason ??
-        "We couldn't confirm today's shellfish closure status. Check the official advisory before you dig.",
-    };
-  }
-  if (!gate.passed && !gate.cannot_confirm) {
+  const closureUnreliable = closureSourceUnreliable(health, asOf);
+
+  if (gate && !gate.passed && !gate.cannot_confirm && !closureUnreliable) {
     return {
       status: 'closed',
       label: 'Closed',
@@ -69,6 +77,31 @@ function resolveClosureStatus(gate?: GateResult): {
         'A confirmed state quarantine is in effect for this beach. Do not harvest clams here today.',
     };
   }
+
+  if (!gate || (!gate.passed && gate.cannot_confirm) || closureUnreliable) {
+    const closureHealth = findAdapter(health, 'cdph_shellfish');
+    const effective = closureHealth
+      ? effectiveSourceStatus(closureHealth, asOf)
+      : 'unknown';
+    const sourceHint =
+      effective === 'down'
+        ? 'The shellfish closure feed is unavailable.'
+        : effective === 'stale'
+          ? 'The shellfish closure feed is stale.'
+          : effective === 'unknown'
+            ? 'The shellfish closure feed status is unknown.'
+            : "We couldn't confirm today's shellfish closure status.";
+    return {
+      status: 'unverified',
+      label: 'Unable to verify closure',
+      detail: 'Closure feed unreachable',
+      alertTitle: 'Unable to verify closure status',
+      alertMessage:
+        gate?.reason ??
+        `${sourceHint} Check the official advisory before you dig.`,
+    };
+  }
+
   return {
     status: 'open',
     label: 'Open — eligible',
@@ -81,29 +114,38 @@ function deriveSources(
   closureStatus: ClosureStatusView,
   health: AdapterHealth[],
   daySunsetTime: string,
+  asOf: Date,
 ): SpotWindowViewModel['sources'] {
-  const tideHealth = health.find((h) => h.source_name === 'coops_tides');
-  const closureHealth = health.find((h) => h.source_name === 'cdph_shellfish');
-  const daylightHealth = health.find((h) => h.source_name === 'daylight_sunrise_api');
+  const tideHealth = findAdapter(health, 'coops_tides');
+  const closureHealth = findAdapter(health, 'cdph_shellfish');
+  const daylightHealth = findAdapter(health, 'daylight_sunrise_api');
   const closureGate = getGate(window.gates, 'no_biotoxin_closure');
 
   const tideUpdated = tideHealth?.last_success_at
     ? formatIsoToPacificTime(tideHealth.last_success_at)
     : '2:05 PM';
-
   const daylightUpdated = daylightHealth?.last_success_at
     ? formatIsoToPacificTime(daylightHealth.last_success_at)
     : '6:00 AM';
 
+  const tideStatus = tideHealth
+    ? effectiveSourceStatus(tideHealth, asOf)
+    : undefined;
+  const closureEffective = closureHealth
+    ? effectiveSourceStatus(closureHealth, asOf)
+    : undefined;
+  const daylightStatus = daylightHealth
+    ? effectiveSourceStatus(daylightHealth, asOf)
+    : undefined;
+
   let closureDetail: string;
-  let closureIsWarning = false;
+  let closureIsWarning = closureStatus === 'unverified';
 
   if (closureStatus === 'unverified') {
     const since = closureHealth?.last_success_at
       ? formatIsoToPacificTime(closureHealth.last_success_at)
       : '6:10 AM';
     closureDetail = `CDPH shellfish advisory feed — last successful check ${since} (failing since)`;
-    closureIsWarning = true;
   } else {
     const checkedAt = closureHealth?.last_success_at
       ? formatIsoToPacificTime(closureHealth.last_success_at)
@@ -111,29 +153,70 @@ function deriveSources(
     closureDetail = `${closureGate?.evidence ?? 'CDPH shellfish advisory'} — checked ${checkedAt}`;
   }
 
+  if (closureEffective && showsStaleBadge(closureEffective)) {
+    closureIsWarning = true;
+  }
+
+  const tideBadge = tideStatus
+    ? badgeFields(tideStatus)
+    : { badge: undefined, badgeLabel: undefined };
+  const closureBadge = closureEffective
+    ? badgeFields(closureEffective)
+    : { badge: undefined, badgeLabel: undefined };
+  const daylightBadge = daylightStatus
+    ? badgeFields(daylightStatus)
+    : { badge: undefined, badgeLabel: undefined };
+
   return [
     {
       label: 'Tide',
-      detail: `NOAA tide prediction — updated ${tideUpdated}`,
+      detail: `NOAA CO-OPS tide prediction — updated ${tideUpdated}`,
+      isWarning: Boolean(tideStatus && showsStaleBadge(tideStatus)),
+      badge: tideBadge.badge,
+      badgeLabel: tideBadge.badgeLabel,
     },
     {
       label: 'Closure',
       detail: closureDetail,
       isWarning: closureIsWarning,
+      badge: closureBadge.badge,
+      badgeLabel: closureBadge.badgeLabel,
     },
     {
       label: 'Daylight',
       detail: `Sunrise/sunset table (sunset ${daySunsetTime}) — updated ${daylightUpdated}`,
+      isWarning: Boolean(daylightStatus && showsStaleBadge(daylightStatus)),
+      badge: daylightBadge.badge,
+      badgeLabel: daylightBadge.badgeLabel,
     },
   ];
+}
+
+function badgeFields(status: ReturnType<typeof effectiveSourceStatus>): {
+  badge: SpotWindowViewModel['sources'][number]['badge'];
+  badgeLabel: string | undefined;
+} {
+  switch (status) {
+    case 'stale':
+      return { badge: 'stale', badgeLabel: 'Source stale' };
+    case 'down':
+      return { badge: 'unavailable', badgeLabel: 'Unavailable' };
+    case 'degraded':
+      return { badge: 'degraded', badgeLabel: 'Degraded' };
+    case 'unknown':
+      return { badge: 'unknown', badgeLabel: 'Unknown' };
+    default:
+      return { badge: 'ok', badgeLabel: 'OK' };
+  }
 }
 
 function buildFreshnessSummary(
   health: AdapterHealth[],
   unverifiedSpotNames: string[],
+  asOf: Date,
 ): DataFreshnessSummary {
-  const tideHealth = health.find((h) => h.source_name === 'coops_tides');
-  const closureHealth = health.find((h) => h.source_name === 'cdph_shellfish');
+  const tideHealth = findAdapter(health, 'coops_tides');
+  const closureHealth = findAdapter(health, 'cdph_shellfish');
 
   const tidesUpdatedAt = tideHealth?.last_success_at
     ? formatIsoToPacificTime(tideHealth.last_success_at)
@@ -143,7 +226,11 @@ function buildFreshnessSummary(
     : '1:40 PM';
 
   let warningNote: string | undefined;
-  if (closureHealth && closureHealth.status !== 'ok' && unverifiedSpotNames.length > 0) {
+  if (
+    closureHealth &&
+    showsStaleBadge(effectiveSourceStatus(closureHealth, asOf)) &&
+    unverifiedSpotNames.length > 0
+  ) {
     const since = closureHealth.last_success_at
       ? formatIsoToPacificTime(closureHealth.last_success_at)
       : '6:10 AM';
@@ -154,7 +241,26 @@ function buildFreshnessSummary(
     tidesUpdatedAt,
     closuresCheckedAt,
     warningNote,
+    sources: buildSourceBadges(health, asOf),
+    checkedAt: asOf.toISOString(),
   };
+}
+
+function resolveSpotIdentity(
+  rec: RecommendResponse['recommendations'][number],
+  spots: Spot[] | undefined,
+  spotMeta: Record<string, SpotDisplayMeta>,
+): { name: string; area: string; mapPosition: { x: number; y: number } } {
+  const catalog = spots?.find((s) => s.id === rec.spot_id);
+  const meta = spotMeta[rec.spot_id];
+  const name = rec.spot_name || catalog?.name || rec.spot_id;
+  const area =
+    meta?.area ??
+    catalog?.county ??
+    catalog?.notes ??
+    'Bay Area Coast';
+  const mapPosition = meta?.mapPosition ?? { x: 50, y: 50 };
+  return { name, area, mapPosition };
 }
 
 /**
@@ -166,8 +272,9 @@ function buildFreshnessSummary(
  *    are excluded from ranking (`notRankedSpots`).
  * 2. Each window is clipped to `[availability.startMinutes, availability.endMinutes]`
  *    and `day.sunsetMinutes`. Zero-overlap windows move to `notRankedSpots`.
- * 3. Safety tier: verified `open` spots ALWAYS rank strictly above `unverified`
- *    (`cannot_confirm=true`) spots. Missing data never ranks #1 over a verified spot.
+ * 3. Safety tier: verified-safe spots ALWAYS rank strictly above unverified
+ *    (`cannot_confirm=true`) or source-stale spots. Missing data never ranks #1
+ *    over a verified spot.
  * 4. Within the same safety tier:
  *    - Capturing the peak low tide inside the clipped window beats missing it.
  *    - Lower low-tide height (ft MLLW) ranks higher (exposes more clam bed).
@@ -180,6 +287,12 @@ export function toPlannerViewModel(params: {
   availability: AvailabilityWindow;
   isExampleData: boolean;
   exampleBannerText: string;
+  dataMode?: DataMode;
+  freshnessAsOf?: Date;
+  spots?: Spot[];
+  scoringPending?: boolean;
+  backendNote?: string | null;
+  liveSpots?: { id: string; name: string }[];
 }): PlannerViewModel {
   const {
     response,
@@ -188,7 +301,20 @@ export function toPlannerViewModel(params: {
     availability,
     isExampleData,
     exampleBannerText,
+    dataMode = isExampleData ? 'fallback' : 'live',
+    freshnessAsOf = new Date(),
+    spots,
+    scoringPending = false,
+    backendNote = response.note ?? null,
+    liveSpots = [],
   } = params;
+
+  const asOf = freshnessAsOf;
+  const sourceIssues: SpotSourceIssue[] = collectSourceIssues(
+    response.health,
+    asOf,
+  );
+  const unverifiableSafety = safetySourcesUnreliable(response.health, asOf);
 
   const eligibleOrUnverified: SpotWindowViewModel[] = [];
   const notRankedSpots: SpotWindowViewModel[] = [];
@@ -197,14 +323,14 @@ export function toPlannerViewModel(params: {
     const primaryWindow = rec.windows[0];
     if (!primaryWindow) continue;
 
-    const meta = spotMeta[rec.spot_id] ?? {
-      area: 'Bay Area Coast',
-      mapPosition: { x: 50, y: 50 },
-    };
+    const identity = resolveSpotIdentity(rec, spots, spotMeta);
 
     const rawStartMinutes = isoToPacificMinutes(primaryWindow.start);
     const rawEndMinutes = isoToPacificMinutes(primaryWindow.end);
-    const clippedStartMinutes = Math.max(rawStartMinutes, availability.startMinutes);
+    const clippedStartMinutes = Math.max(
+      rawStartMinutes,
+      availability.startMinutes,
+    );
     const clippedEndMinutes = Math.min(
       rawEndMinutes,
       availability.endMinutes,
@@ -222,11 +348,14 @@ export function toPlannerViewModel(params: {
     );
     const lowTideHeightFt = tideHeightFactor?.value ?? 0;
     const lowTideMinutes =
-      tideMinutesFactor?.value ?? Math.round((rawStartMinutes + rawEndMinutes) / 2);
+      tideMinutesFactor?.value ??
+      Math.round((rawStartMinutes + rawEndMinutes) / 2);
     const lowTideTime = formatTime(lowTideMinutes);
 
     const closureGate = getGate(primaryWindow.gates, 'no_biotoxin_closure');
-    const closure = resolveClosureStatus(closureGate);
+    const closure = resolveClosureStatus(closureGate, response.health, asOf);
+    const isVerifiedSafe =
+      closure.status === 'open' && !unverifiableSafety;
 
     const capturesLowTidePeak =
       durationMinutes > 0 &&
@@ -238,12 +367,13 @@ export function toPlannerViewModel(params: {
       closure.status,
       response.health,
       day.sunsetTime,
+      asOf,
     );
 
     const baseVm: SpotWindowViewModel = {
       spotId: rec.spot_id,
-      spotName: rec.spot_name,
-      area: meta.area,
+      spotName: identity.name,
+      area: identity.area,
       rank: null,
       isTopPick: false,
       isRanked: false,
@@ -266,7 +396,9 @@ export function toPlannerViewModel(params: {
       reasonSummary: primaryWindow.summary ?? '',
       bestPickTagline: '',
       sources,
-      mapPosition: meta.mapPosition,
+      isVerifiedSafe,
+      sourceIssues,
+      mapPosition: identity.mapPosition,
       rawWindow: primaryWindow,
     };
 
@@ -279,7 +411,8 @@ export function toPlannerViewModel(params: {
         reasonSummary:
           primaryWindow.summary ??
           `Not recommended: ${closure.detail.toLowerCase()} is active today, even though the tide drops to ${formatSignedHeight(lowTideHeightFt)} at ${lowTideTime}.`,
-        notRankedReason: 'Confirmed shellfish quarantine — not shown on the chart.',
+        notRankedReason:
+          'Confirmed shellfish quarantine — not shown on the chart.',
       });
       continue;
     }
@@ -303,8 +436,8 @@ export function toPlannerViewModel(params: {
   }
 
   eligibleOrUnverified.sort((a, b) => {
-    const aTier = a.closureStatus === 'open' ? 0 : 1;
-    const bTier = b.closureStatus === 'open' ? 0 : 1;
+    const aTier = a.isVerifiedSafe ? 0 : 1;
+    const bTier = b.isVerifiedSafe ? 0 : 1;
     if (aTier !== bTier) return aTier - bTier;
 
     if (a.capturesLowTidePeak !== b.capturesLowTidePeak) {
@@ -323,53 +456,66 @@ export function toPlannerViewModel(params: {
   });
 
   const totalRanked = eligibleOrUnverified.length;
-  const rankedSpots = eligibleOrUnverified.map((spot, index): SpotWindowViewModel => {
-    const rank = index + 1;
-    const isTopPick = rank === 1 && spot.closureStatus === 'open';
-    const heightStr = formatSignedHeight(spot.lowTideHeightFt);
+  const rankedSpots = eligibleOrUnverified.map(
+    (spot, index): SpotWindowViewModel => {
+      const rank = index + 1;
+      const isTopPick = rank === 1 && spot.isVerifiedSafe;
+      const heightStr = formatSignedHeight(spot.lowTideHeightFt);
 
-    let reasonSummary: string;
-    if (spot.closureStatus === 'unverified') {
-      reasonSummary = `Ranked #${rank} of ${totalRanked}: the tide is good (${heightStr} at ${spot.lowTideTime}), but we couldn't confirm today's shellfish closure status, so we can't recommend digging here yet.`;
-    } else if (isTopPick) {
-      if (spot.capturesLowTidePeak) {
-        reasonSummary = `Ranked #1 because it has the day's lowest verified tide (${heightStr} at ${spot.lowTideTime}), exposing the most clam flat, and the ${formatDuration(spot.durationMinutes)} window fits in daylight and your free hours.`;
+      let reasonSummary: string;
+      if (!spot.isVerifiedSafe) {
+        const issueHint = spot.sourceIssues[0]?.detail;
+        reasonSummary = issueHint
+          ? `Ranked #${rank} of ${totalRanked}: the tide is ${heightStr} at ${spot.lowTideTime}, but ${issueHint.toLowerCase()}, so we can't treat this window as verified-safe.`
+          : `Ranked #${rank} of ${totalRanked}: the tide is good (${heightStr} at ${spot.lowTideTime}), but we couldn't confirm today's shellfish closure status, so we can't recommend digging here yet.`;
+      } else if (isTopPick) {
+        if (spot.capturesLowTidePeak) {
+          reasonSummary = `Ranked #1 because it has the day's lowest verified tide (${heightStr} at ${spot.lowTideTime}), exposing the most clam flat, and the ${formatDuration(spot.durationMinutes)} window fits in daylight and your free hours.`;
+        } else {
+          reasonSummary = `Ranked #1 because it is verified open with ${formatDuration(spot.durationMinutes)} of clamming time inside your ${availability.shortLabel} hours before sunset (${day.sunsetTime}).`;
+        }
+      } else if (!spot.capturesLowTidePeak) {
+        reasonSummary = `Ranked #${rank} because its peak low tide (${heightStr} at ${spot.lowTideTime}) falls outside your ${availability.shortLabel} window, leaving a ${formatDuration(spot.durationMinutes)} overlap.`;
       } else {
-        reasonSummary = `Ranked #1 because it is verified open with ${formatDuration(spot.durationMinutes)} of clamming time inside your ${availability.shortLabel} hours before sunset (${day.sunsetTime}).`;
+        reasonSummary = `Ranked #${rank}: verified open with a ${formatDuration(spot.durationMinutes)} window around a ${heightStr} low tide at ${spot.lowTideTime} — longer than #1, though the tide doesn't drop as low.`;
       }
-    } else if (!spot.capturesLowTidePeak) {
-      reasonSummary = `Ranked #${rank} because its peak low tide (${heightStr} at ${spot.lowTideTime}) falls outside your ${availability.shortLabel} window, leaving a ${formatDuration(spot.durationMinutes)} overlap.`;
-    } else {
-      reasonSummary = `Ranked #${rank}: verified open with a ${formatDuration(spot.durationMinutes)} window around a ${heightStr} low tide at ${spot.lowTideTime} — longer than #1, though the tide doesn't drop as low.`;
-    }
 
-    const bestPickTagline = spot.capturesLowTidePeak
-      ? `Lowest tide of the day (${heightStr} at ${spot.lowTideTime}) · all in daylight · inside your hours`
-      : `Verified open · ${formatDuration(spot.durationMinutes)} inside your hours · all in daylight`;
+      const bestPickTagline = spot.capturesLowTidePeak
+        ? `Lowest tide of the day (${heightStr} at ${spot.lowTideTime}) · all in daylight · inside your hours`
+        : `Verified open · ${formatDuration(spot.durationMinutes)} inside your hours · all in daylight`;
 
-    return {
-      ...spot,
-      rank,
-      isTopPick,
-      reasonSummary,
-      bestPickTagline,
-    };
-  });
+      return {
+        ...spot,
+        rank,
+        isTopPick,
+        reasonSummary,
+        bestPickTagline,
+      };
+    },
+  );
 
   const bestPick =
-    rankedSpots.find((s) => s.closureStatus === 'open') ?? null;
+    rankedSpots.find((s) => s.isVerifiedSafe) ?? null;
 
   const tradeoff = computeTradeoff(rankedSpots, availability);
 
   const unverifiedNames = rankedSpots
-    .filter((s) => s.closureStatus === 'unverified')
+    .filter((s) => !s.isVerifiedSafe)
     .map((s) => s.spotName.split(' ')[0]);
 
-  const freshness = buildFreshnessSummary(response.health, unverifiedNames);
+  const freshness = buildFreshnessSummary(
+    response.health,
+    unverifiedNames,
+    asOf,
+  );
 
   return {
     isExampleData,
     exampleBannerText,
+    dataMode,
+    scoringPending,
+    backendNote,
+    liveSpots,
     activity: response.activity,
     day,
     availability,
@@ -386,7 +532,7 @@ function computeTradeoff(
   rankedSpots: SpotWindowViewModel[],
   availability: AvailabilityWindow,
 ): TradeoffSummary | null {
-  const openSpots = rankedSpots.filter((s) => s.closureStatus === 'open');
+  const openSpots = rankedSpots.filter((s) => s.isVerifiedSafe);
   if (openSpots.length < 2) return null;
 
   const first = openSpots[0];
