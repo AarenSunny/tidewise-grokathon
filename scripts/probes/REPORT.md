@@ -1,40 +1,42 @@
 # TideWise build probe report (Phase 2)
 
-Ran: **2026-11-19 15:34 PST**
+Ran: **2026-11-19 16:00 PST** (point-in-time snapshot; feeds flap and age, re-run before relying on it)
 UA: `TideWise/0.1 (build-probes; https://github.com/AarenSunny/tidewise-grokathon)`
 
 Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also under `scripts/probes/out/` (gitignored).
 
 ## Summary
 
-| Source | OK | HTTP | Latency ms | Notes / discrepancies |
-| --- | --- | --- | --- | --- |
-| `coops_predictions_hilo` | yes | 200 | 462 | keys t,v,type match DATA_SOURCES sample; today low tides ft MLLW: [1.018, 1.674] |
-| `coops_water_level_latest` | yes | 200 | 327 |  |
-| `coops_currents_SFB1201` | yes | 200 | 491 | top-level keys: ['current_predictions'] |
-| `coops_water_temp_9414290_expect_nodata` | yes | 200 | 288 | Confirmed: no water_temperature at 9414290 (matches DATA_SOURCES) |
-| `ndbc_46026` | yes | 200 | 163 | latest_row_stamp=2026-11-19 22:40Z; MM sentinel present in row; WTMP=18.8 |
-| `ndbc_46012` | yes | 200 | 88 | latest_row_stamp=2026-11-19 23:00Z; MM sentinel present in row; WTMP=18.9 |
-| `ndbc_46237` | yes | 200 | 268 | latest_row_stamp=2026-11-19 23:00Z; MM sentinel present in row; WTMP=17.1 |
-| `ndbc_46239` | yes | 200 | 250 | latest_row_stamp=2026-10-25 03:00Z; STALE confirmed age_days=25 (DATA_SOURCES warned); MM sentinel present in row; WTMP=20.2 |
-| `ndbc_46026_spec` | yes | 200 | 69 |  |
-| `nws_points_sf` | yes | 200 | 99 | grid MTR/83,107 matches DATA_SOURCES |
-| `nws_alerts_CA` | yes | 200 | 152 | alert_count=38 (DATA_SOURCES had 38 earlier today) |
-| `nws_zone_PZZ545` | yes | 200 | 118 |  |
-| `nws_srf_MTR` | yes | 200 | 159 |  |
-| `erddap_mur_sst` | no | 503 | 1604 | ERROR: HTTPError: 503; CoastWatch ERDDAP returned 503 for dataset path — DATA_SOURCES verified this ID earlier today; treat as feed outage/rename |
-| `erddap_viirs_chl_8day` | no | 503 | 1534 | ERROR: HTTPError: 503; CoastWatch ERDDAP returned 503 for dataset path — DATA_SOURCES verified this ID earlier today; treat as feed outage/rename |
-| `erddap_charm_0day` | no | 503 | 1913 | ERROR: HTTPError: 503; CoastWatch ERDDAP returned 503 for dataset path — DATA_SOURCES verified this ID earlier today; treat as feed outage/rename |
-| `erddap_mur_anom` | no | 503 | 1652 | ERROR: HTTPError: 503; CoastWatch ERDDAP returned 503 for dataset path — DATA_SOURCES verified this ID earlier today; treat as feed outage/rename |
-| `cdph_arcgis_special_advisory` | yes | 200 | 194 |  |
-| `cdph_arcgis_county_symbols` | yes | 200 | 199 | has San Francisco/San Mateo/Marin County (suffix required) |
-| `cdph_html_tls_check` | yes | 200 | 335 | ERROR: URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1029)>; strict TLS failed — matches DATA_ |
-| `beachwatch_bacteria_datastore` | yes | 200 | 1994 |  |
-| `beachwatch_advisories_datastore` | yes | 200 | 406 |  |
-| `firms_modis_usa_24h_csv` | yes | 200 | 638 |  |
-| `eonet_wildfires_bbox` | yes | 200 | 1071 | EONET open events may be stale — use FIRMS for heat (per DATA_SOURCES) |
-| `epa_uv_hourly_94121` | yes | 200 | 1229 |  |
-| `nasa_power_daily_sf` | yes | 200 | 207 | ALLSKY_SFC_UV_INDEX all -999 — confirms DATA_SOURCES; use EPA UV |
+Verdict is **OK only if reachable AND parsed AND fresh** (observation age within the adapter's `max_age`). HTTP 200 alone is never OK: frozen feeds show **STALE**. TLS verification is always strict.
+
+| Source | Verdict | HTTP | Latency ms | Obs age h / budget h | Notes / discrepancies |
+| --- | --- | --- | --- | --- | --- |
+| `coops_predictions_hilo` | N/A | 200 | 374 | - | keys t,v,type match DATA_SOURCES sample; today low tides ft MLLW: [1.018, 1.674] |
+| `coops_water_level_latest` | OK | 200 | 466 | 0.1 / 0.5 |  |
+| `coops_currents_SFB1201` | N/A | 200 | 337 | - | top-level keys: ['current_predictions'] |
+| `coops_water_temp_9414290_expect_nodata` | N/A | 200 | 371 | - | Confirmed: no water_temperature at 9414290 (matches DATA_SOURCES) |
+| `ndbc_46026` | OK | 200 | 348 | 0.5 / 3.0 | latest_row_stamp=2026-11-19 23:30Z; MM sentinel present in row; WTMP=18.8 |
+| `ndbc_46012` | OK | 200 | 83 | 1.0 / 3.0 | latest_row_stamp=2026-11-19 23:00Z; MM sentinel present in row; WTMP=18.9 |
+| `ndbc_46237` | OK | 200 | 74 | 1.0 / 3.0 | latest_row_stamp=2026-11-19 23:00Z; MM sentinel present in row; WTMP=17.1 |
+| `ndbc_46239` | STALE | 200 | 89 | 621.0 / 3.0 | latest_row_stamp=2026-10-25 03:00Z; STALE confirmed age_days=25 (DATA_SOURCES warned); MM sentinel present in row; WTMP=20.2; FROZEN/STALE: observation age 621.0 h > budget 3.0 h ( |
+| `ndbc_46026_spec` | N/A | 200 | 62 | - |  |
+| `nws_points_sf` | N/A | 200 | 72 | - | grid MTR/83,107 matches DATA_SOURCES |
+| `nws_alerts_CA` | N/A | 200 | 179 | - | alert_count=34 (DATA_SOURCES had 38 earlier today) |
+| `nws_zone_PZZ545` | N/A | 200 | 126 | - |  |
+| `nws_srf_MTR` | N/A | 200 | 193 | - |  |
+| `erddap_mur_sst` | OK | 200 | 723 | 39.0 / 72.0 | time_sample=2026-11-18T09:00:00Z; null_analysed_sst_count=11/36 (coast/land fill) |
+| `erddap_viirs_chl_8day` | STALE | 200 | 871 | 264.0 / 240.0 | time_sample=2026-11-09T00:00:00Z; null_chla_count=22/49 (coast/land fill); FROZEN/STALE: observation age 264.0 h > budget 240.0 h (HTTP 200 does not mean usable) |
+| `erddap_charm_0day` | STALE | 200 | 623 | 420.0 / 72.0 | time_sample=2026-11-02T12:00:00Z; null_pseudo_nitzschia_count=4/64 (coast/land fill); FROZEN/STALE: observation age 420.0 h > budget 72.0 h (HTTP 200 does not mean usable) |
+| `erddap_mur_anom` | FAIL | 503 | 1581 | - | ERROR: HTTPError: 503; CoastWatch ERDDAP returned 503 — transient/intermittent availability (flapping observed); retry with backoff, then serve last-good with age |
+| `cdph_arcgis_special_advisory` | N/A | 200 | 127 | - |  |
+| `cdph_arcgis_county_symbols` | N/A | 200 | 120 | - | has San Francisco County; has San Mateo County; has Marin County |
+| `cdph_html_tls_check` | FAIL | None | - | - | ERROR: URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1029)>; strict TLS verification FAILED (s |
+| `beachwatch_bacteria_datastore` | N/A | 200 | 29386 | - |  |
+| `beachwatch_advisories_datastore` | N/A | 200 | 1431 | - |  |
+| `firms_modis_usa_24h_csv` | N/A | 200 | 511 | - |  |
+| `eonet_wildfires_bbox` | N/A | 200 | 3530 | - | EONET open events may be stale — use FIRMS for heat (per DATA_SOURCES) |
+| `epa_uv_hourly_94121` | OK | 200 | 947 | 1.0 / 6.0 |  |
+| `nasa_power_daily_sf` | N/A | 200 | 160 | - | ALLSKY_SFC_UV_INDEX all -999 — confirms DATA_SOURCES; use EPA UV |
 
 ## Response shapes (abbreviated)
 
@@ -42,6 +44,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "predictions": [
@@ -78,6 +84,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "OK",
+  "observed_at": "2026-11-19T23:54:00+00:00",
+  "age_hours": 0.1,
+  "max_age_hours": 0.5,
   "http_status": 200,
   "shape": {
     "metadata": {
@@ -99,9 +109,9 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
   },
   "sample": [
     {
-      "t": "2026-11-19 15:24",
-      "v": "3.495",
-      "s": "0.341",
+      "t": "2026-11-19 23:54",
+      "v": "3.843",
+      "s": "0.348",
       "f": "0,0,0,0",
       "q": "p"
     }
@@ -116,6 +126,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "current_predictions": {
@@ -225,6 +239,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "error": {
@@ -248,6 +266,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "OK",
+  "observed_at": "2026-11-19T23:30:00+00:00",
+  "age_hours": 0.5,
+  "max_age_hours": 3.0,
   "http_status": 200,
   "shape": {
     "format": "space_separated_txt",
@@ -255,13 +277,13 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
       "#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES  ATMP  WTMP  DEWP  VIS PTDY  TIDE",
       "#yr  mo dy hr mn degT m/s  m/s     m   sec   sec degT   hPa  degC  degC  degC  nmi  hPa    ft"
     ],
-    "n_data_rows": 6494
+    "n_data_rows": 6500
   },
   "sample": [
-    "2026 11 19 22 40 300 12.0 15.0   3.5    MM   8.2 268 1011.5    MM  18.8    MM   MM   MM    MM"
+    "2026 11 19 23 30 300 10.0 13.0    MM    MM    MM  MM 1012.0    MM  18.8    MM   MM   MM    MM"
   ],
   "notes": [
-    "latest_row_stamp=2026-11-19 22:40Z",
+    "latest_row_stamp=2026-11-19 23:30Z",
     "MM sentinel present in row",
     "WTMP=18.8"
   ],
@@ -274,6 +296,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "OK",
+  "observed_at": "2026-11-19T23:00:00+00:00",
+  "age_hours": 1.0,
+  "max_age_hours": 3.0,
   "http_status": 200,
   "shape": {
     "format": "space_separated_txt",
@@ -300,6 +326,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "OK",
+  "observed_at": "2026-11-19T23:00:00+00:00",
+  "age_hours": 1.0,
+  "max_age_hours": 3.0,
   "http_status": 200,
   "shape": {
     "format": "space_separated_txt",
@@ -326,6 +356,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "STALE",
+  "observed_at": "2026-10-25T03:00:00+00:00",
+  "age_hours": 621.0,
+  "max_age_hours": 3.0,
   "http_status": 200,
   "shape": {
     "format": "space_separated_txt",
@@ -344,7 +378,9 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
     "MM sentinel present in row",
     "WTMP=20.2"
   ],
-  "discrepancies": [],
+  "discrepancies": [
+    "FROZEN/STALE: observation age 621.0 h > budget 3.0 h (HTTP 200 does not mean usable)"
+  ],
   "error": null
 }
 ```
@@ -353,16 +389,20 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "header": [
       "#YY  MM DD hh mm WVHT  SwH  SwP  WWH  WWP SwD WWD  STEEPNESS  APD MWD",
       "#yr  mo dy hr mn    m    m  sec    m  sec  -  degT     -      sec degT"
     ],
-    "n_rows": 2146
+    "n_rows": 2147
   },
   "sample": [
-    "2026 11 19 22 40  3.5  3.1 14.8  1.5  5.3   W WNW      SWELL  8.2 268"
+    "2026 11 19 23 09  3.7  3.2 14.8  1.9  6.7   W WSW      SWELL  8.4 278"
   ],
   "notes": [],
   "discrepancies": [],
@@ -374,6 +414,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "properties_keys": [
@@ -415,27 +459,35 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "type": "FeatureCollection",
-    "n_features": 38
+    "n_features": 34
   },
   "sample": [
-    [
-      "Wind Advisory",
-      9
-    ],
     [
       "Winter Storm Warning",
       6
     ],
     [
-      "Flood Advisory",
+      "Wind Advisory",
       5
+    ],
+    [
+      "Flood Advisory",
+      4
     ],
     [
       "High Surf Advisory",
       4
+    ],
+    [
+      "Special Weather Statement",
+      3
     ],
     [
       "Beach Hazards Statement",
@@ -455,15 +507,11 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
     ],
     [
       "Flash Flood Watch",
-      2
-    ],
-    [
-      "Special Weather Statement",
       1
     ]
   ],
   "notes": [
-    "alert_count=38 (DATA_SOURCES had 38 earlier today)"
+    "alert_count=34 (DATA_SOURCES had 38 earlier today)"
   ],
   "discrepancies": [],
   "error": null
@@ -474,6 +522,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "n_periods": 11,
@@ -497,6 +549,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "keys": [
@@ -519,45 +575,149 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ### `erddap_mur_sst`
 ```json
 {
-  "ok": false,
-  "http_status": 503,
-  "shape": {},
-  "sample": "Error {\n    code=503;\n    message=\"Service Unavailable: There was a (temporary?) problem.  Wait a minute, then try again.  (In a browser, click the Reload button.)\";\n}\n",
-  "notes": [],
-  "discrepancies": [
-    "CoastWatch ERDDAP returned 503 for dataset path \u2014 DATA_SOURCES verified this ID earlier today; treat as feed outage/rename"
+  "ok": true,
+  "verdict": "OK",
+  "observed_at": "2026-11-18T09:00:00+00:00",
+  "age_hours": 39.0,
+  "max_age_hours": 72.0,
+  "http_status": 200,
+  "shape": {
+    "columnNames": [
+      "time",
+      "latitude",
+      "longitude",
+      "analysed_sst"
+    ],
+    "n_rows": 36
+  },
+  "sample": [
+    [
+      "2026-11-18T09:00:00Z",
+      37.5,
+      -122.55,
+      18.713
+    ],
+    [
+      "2026-11-18T09:00:00Z",
+      37.5,
+      -122.54,
+      18.716
+    ],
+    [
+      "2026-11-18T09:00:00Z",
+      37.5,
+      -122.53,
+      18.72
+    ]
   ],
-  "error": "HTTPError: 503"
+  "notes": [
+    "time_sample=2026-11-18T09:00:00Z",
+    "null_analysed_sst_count=11/36 (coast/land fill)"
+  ],
+  "discrepancies": [],
+  "error": null
 }
 ```
 
 ### `erddap_viirs_chl_8day`
 ```json
 {
-  "ok": false,
-  "http_status": 503,
-  "shape": {},
-  "sample": "Error {\n    code=503;\n    message=\"Service Unavailable: There was a (temporary?) problem.  Wait a minute, then try again.  (In a browser, click the Reload button.)\";\n}\n",
-  "notes": [],
-  "discrepancies": [
-    "CoastWatch ERDDAP returned 503 for dataset path \u2014 DATA_SOURCES verified this ID earlier today; treat as feed outage/rename"
+  "ok": true,
+  "verdict": "STALE",
+  "observed_at": "2026-11-09T00:00:00+00:00",
+  "age_hours": 264.0,
+  "max_age_hours": 240.0,
+  "http_status": 200,
+  "shape": {
+    "columnNames": [
+      "time",
+      "altitude",
+      "latitude",
+      "longitude",
+      "chla"
+    ],
+    "n_rows": 49
+  },
+  "sample": [
+    [
+      "2026-11-09T00:00:00Z",
+      0,
+      37.54875,
+      -122.54625,
+      1.5067434
+    ],
+    [
+      "2026-11-09T00:00:00Z",
+      0,
+      37.54875,
+      -122.53875,
+      1.6494879
+    ],
+    [
+      "2026-11-09T00:00:00Z",
+      0,
+      37.54875,
+      -122.53125,
+      1.7409934
+    ]
   ],
-  "error": "HTTPError: 503"
+  "notes": [
+    "time_sample=2026-11-09T00:00:00Z",
+    "null_chla_count=22/49 (coast/land fill)"
+  ],
+  "discrepancies": [
+    "FROZEN/STALE: observation age 264.0 h > budget 240.0 h (HTTP 200 does not mean usable)"
+  ],
+  "error": null
 }
 ```
 
 ### `erddap_charm_0day`
 ```json
 {
-  "ok": false,
-  "http_status": 503,
-  "shape": {},
-  "sample": "Error {\n    code=503;\n    message=\"Service Unavailable: There was a (temporary?) problem.  Wait a minute, then try again.  (In a browser, click the Reload button.)\";\n}\n",
-  "notes": [],
-  "discrepancies": [
-    "CoastWatch ERDDAP returned 503 for dataset path \u2014 DATA_SOURCES verified this ID earlier today; treat as feed outage/rename"
+  "ok": true,
+  "verdict": "STALE",
+  "observed_at": "2026-11-02T12:00:00+00:00",
+  "age_hours": 420.0,
+  "max_age_hours": 72.0,
+  "http_status": 200,
+  "shape": {
+    "columnNames": [
+      "time",
+      "latitude",
+      "longitude",
+      "pseudo_nitzschia"
+    ],
+    "n_rows": 64
+  },
+  "sample": [
+    [
+      "2026-11-02T12:00:00Z",
+      37.39,
+      237.3,
+      0.7369895
+    ],
+    [
+      "2026-11-02T12:00:00Z",
+      37.39,
+      237.33,
+      0.7491479
+    ],
+    [
+      "2026-11-02T12:00:00Z",
+      37.39,
+      237.36,
+      0.7009353
+    ]
   ],
-  "error": "HTTPError: 503"
+  "notes": [
+    "time_sample=2026-11-02T12:00:00Z",
+    "null_pseudo_nitzschia_count=4/64 (coast/land fill)"
+  ],
+  "discrepancies": [
+    "FROZEN/STALE: observation age 420.0 h > budget 72.0 h (HTTP 200 does not mean usable)"
+  ],
+  "error": null
 }
 ```
 
@@ -565,12 +725,16 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": false,
+  "verdict": "FAIL",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 503,
   "shape": {},
   "sample": "Error {\n    code=503;\n    message=\"Service Unavailable: There was a (temporary?) problem.  Wait a minute, then try again.  (In a browser, click the Reload button.)\";\n}\n",
   "notes": [],
   "discrepancies": [
-    "CoastWatch ERDDAP returned 503 for dataset path \u2014 DATA_SOURCES verified this ID earlier today; treat as feed outage/rename"
+    "CoastWatch ERDDAP returned 503 \u2014 transient/intermittent availability (flapping observed); retry with backoff, then serve last-good with age"
   ],
   "error": "HTTPError: 503"
 }
@@ -580,6 +744,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "n_features": 1,
@@ -606,6 +774,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "n_features": 21
@@ -622,12 +794,12 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
     "San Mateo County",
     "Santa Cruz County"
   ],
-  "notes": [],
-  "discrepancies": [
-    "missing county symbol: San Francisco",
-    "missing county symbol: San Mateo",
-    "missing county symbol: Marin"
+  "notes": [
+    "has San Francisco County",
+    "has San Mateo County",
+    "has Marin County"
   ],
+  "discrepancies": [],
   "error": null
 }
 ```
@@ -635,15 +807,19 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ### `cdph_html_tls_check`
 ```json
 {
-  "ok": true,
-  "http_status": 200,
+  "ok": false,
+  "verdict": "FAIL",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
+  "http_status": null,
   "shape": {},
   "sample": null,
   "notes": [
-    "strict TLS failed \u2014 matches DATA_SOURCES quirk; try insecure for probe only"
+    "strict TLS verification FAILED (server omits intermediate cert); source NOT usable for the closure gate; verification is never disabled"
   ],
   "discrepancies": [
-    "CDPH TLS requires insecure context here (probe-only)"
+    "CDPH HTML unusable under strict TLS; closure gate must be cannot_confirm unless the intermediate CA is pinned"
   ],
   "error": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1029)>"
 }
@@ -653,6 +829,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "success": true,
@@ -811,15 +991,17 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
       "UpdateDate": "2018-09-19",
       "Results Insert Date": "2015-08-19",
       "pointZero": 1,
-      "Beach_AgencyName": "Health Department County of San Mateo Environmental Health",
-      "Beach_Name": "San Gregorio State Beach",
-      "Desc
+      "Beach_AgencyName": "Health Department County of San
 ```
 
 ### `beachwatch_advisories_datastore`
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "record_keys": [
@@ -972,19 +1154,20 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
       "Station_Name": "San Gregorio Creek",
       "Station_Description": "San Gregorio Creek",
       "AgencyStationIdentifier": "San Gregorio Creek",
-      "Station_UpperLat": 37.32098,
-      "Station_UpperLon": -122.40321,
-      "Station_LowerLat": 37.32098,
-      "
+      "Station_UpperLat": 37
 ```
 
 ### `firms_modis_usa_24h_csv`
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
-    "n_usa": 391,
+    "n_usa": 442,
     "n_bbox": 0,
     "fields": [
       "latitude",
@@ -1029,6 +1212,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "n_events": 5
@@ -1067,6 +1254,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "OK",
+  "observed_at": "2026-11-19T23:00:00+00:00",
+  "age_hours": 1.01,
+  "max_age_hours": 6.0,
   "http_status": 200,
   "shape": {
     "type": "list",
@@ -1100,6 +1291,10 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 ```json
 {
   "ok": true,
+  "verdict": "N/A",
+  "observed_at": null,
+  "age_hours": null,
+  "max_age_hours": null,
   "http_status": 200,
   "shape": {
     "parameters": [
@@ -1132,28 +1327,20 @@ Live probes against every Part A source in `DATA_SOURCES.md`. Raw summaries also
 }
 ```
 
-
-## Live outage timeline (same afternoon)
-
-1. **First pass (~15:33 PST):** `jplMURSST41` and `jplMURSST41anom1day` returned **200** with expected columns; `erdVHNchla8day` and `wvcharmV3_0day` returned **404** (including `/info/{id}`). Research probe `04_erddap_sst_chl.py` reproduced the same 404 on chl.
-2. **Minutes later:** CoastWatch ERDDAP broadly returned **503 Service Unavailable** for MUR, search, and allDatasets as well.
-3. **Conclusion:** Trust the live call over the morning verification in `DATA_SOURCES.md`. Adapters must degrade (stale cache / backup NDBC WTMP) when ERDDAP 404/503. Dataset rename vs transient outage for VIIRS/C-HARM IDs is unresolved until ERDDAP recovers — re-probe before locking adapter dataset IDs.
-
 ## Discrepancies vs DATA_SOURCES.md
 
-- **erddap_mur_sst:** CoastWatch ERDDAP returned 503 for dataset path — DATA_SOURCES verified this ID earlier today; treat as feed outage/rename
-- **erddap_viirs_chl_8day:** CoastWatch ERDDAP returned 503 for dataset path — DATA_SOURCES verified this ID earlier today; treat as feed outage/rename
-- **erddap_charm_0day:** CoastWatch ERDDAP returned 503 for dataset path — DATA_SOURCES verified this ID earlier today; treat as feed outage/rename
-- **erddap_mur_anom:** CoastWatch ERDDAP returned 503 for dataset path — DATA_SOURCES verified this ID earlier today; treat as feed outage/rename
-- **cdph_arcgis_county_symbols (false positive, fixed):** names are `San Francisco County` etc.; exact match without ` County` was wrong.
-- **cdph_html_tls_check:** CDPH TLS requires insecure context here (probe-only)
+- **ndbc_46239:** FROZEN/STALE: observation age 621.0 h > budget 3.0 h (HTTP 200 does not mean usable)
+- **erddap_viirs_chl_8day:** FROZEN/STALE: observation age 264.0 h > budget 240.0 h (HTTP 200 does not mean usable)
+- **erddap_charm_0day:** FROZEN/STALE: observation age 420.0 h > budget 72.0 h (HTTP 200 does not mean usable)
+- **erddap_mur_anom:** CoastWatch ERDDAP returned 503 — transient/intermittent availability (flapping observed); retry with backoff, then serve last-good with age
+- **cdph_html_tls_check:** CDPH HTML unusable under strict TLS; closure gate must be cannot_confirm unless the intermediate CA is pinned
 
 ## Adapter implications (for Phase 3)
 
 - CO-OPS: parse `predictions[]` / `data[]`; treat `error.message` as down/no-product.
 - NDBC: reject `MM`; check row timestamp for stale CDIP IDs; WTMP/WVHT metric.
 - NWS: require User-Agent; resolve points→grid each time (XY may shift).
-- ERDDAP: tiny bboxes; C-HARM lon 0–360; treat null fills; check `time` freshness.
-- Shellfish: ArcGIS FeatureServer primary; CDPH HTML TLS may need careful CA handling.
+- ERDDAP: availability flaps (404/503/200); treat as transient. tiny bboxes; C-HARM lon 0-360; null fills; judge freshness by `time` (C-HARM ~17 d and VIIRS ~10 d are STALE).
+- Shellfish: ArcGIS layers are static pins (cannot represent closure status); CDPH HTML fails strict TLS (missing intermediate) -> closure gate is cannot_confirm until a dated source exists. Never disable TLS verification.
 - UV: EPA hourly ZIP; do not use POWER UV_INDEX (fill).
 - Fires: FIRMS CSV + bbox filter; EONET narrative only.
