@@ -32,6 +32,11 @@ bloom:
     sf_bay: protective_max_mg_m3
   at_risk_band:
     sf_bay: [at_risk_low_mg_m3, at_risk_high_mg_m3]
+# Pass only when a CDPH closure boolean is explicitly false.
+# County names and other free text do not count as clear.
+shellfish_boolean:
+  clear: ["cdph_closure=false", "any_region_advisory=false"]
+  closed: ["cdph_closure=true", "any_region_advisory=true"]
 alert_patterns:
   shellfish_closure:
     - shellfish
