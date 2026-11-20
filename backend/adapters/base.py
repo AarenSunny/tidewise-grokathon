@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import logging
+import os
 import random
 import time
 from abc import ABC, abstractmethod
@@ -60,6 +61,9 @@ class TransientFetchError(Exception):
         self.retry_after_s = retry_after_s
 
 
+_DEFAULT_FUTURE_SKEW = timedelta(minutes=5)
+
+
 class SourceAdapter(ABC):
     """Interface every feed adapter must implement."""
 
@@ -73,6 +77,14 @@ class SourceAdapter(ABC):
     max_stale_age: timedelta = timedelta(hours=24)
     safety_critical: bool = False
     payload_model: Optional[Type[BaseModel]] = None
+    # review3 P3-2: an observed_at further in the future than this is invalid, not fresh.
+    # Override per class, or globally via ADAPTER_MAX_FUTURE_SKEW_S (seconds).
+    max_future_skew: Optional[timedelta] = None
+    # Forecast/prediction feeds (tides, currents, sunrise) legitimately carry a future
+    # observed_at (newest predicted point). They opt in explicitly; default is strict.
+    allows_future_observed_at: bool = False
+    # review1-#6: bound every sync parse so a hung/slow validator cannot stall the loop.
+    validate_timeout_s: float = 5.0
 
     def __init__(
         self,
@@ -160,10 +172,51 @@ class SourceAdapter(ABC):
             )
         return result.model_dump(mode="json")
 
+    def _future_skew(self) -> timedelta:
+        if self.max_future_skew is not None:
+            return self.max_future_skew
+        raw = os.getenv("ADAPTER_MAX_FUTURE_SKEW_S", "").strip()
+        try:
+            return timedelta(seconds=float(raw)) if raw else _DEFAULT_FUTURE_SKEW
+        except ValueError:
+            return _DEFAULT_FUTURE_SKEW
+
+    @staticmethod
+    def _worse(current: SourceStatus, candidate: SourceStatus) -> SourceStatus:
+        order = {
+            SourceStatus.ok: 0,
+            SourceStatus.unknown: 1,
+            SourceStatus.degraded: 1,
+            SourceStatus.stale: 2,
+            SourceStatus.down: 3,
+        }
+        return candidate if order[candidate] > order[current] else current
+
     def _apply_freshness(self, result: SourceResult, now: datetime) -> SourceResult:
-        if result.observed_at is None or result.data is None:
+        """Judge payload freshness by the observation's own time (review1-#2, review3 P3-2).
+
+        - no payload: nothing to judge (caller already has a down/stale status).
+        - observed_at missing: NOT fresh (stale, down if safety-critical). A gate that
+          needs this source gets cannot_confirm, never a pass.
+        - observed_at in the future beyond the skew: invalid (down), never fresh.
+        """
+        if result.data is None:
+            return result
+        degraded = SourceStatus.down if self.safety_critical else SourceStatus.stale
+        if result.observed_at is None:
+            result.notes = [*result.notes, "observed_at_missing_not_fresh"]
+            result.status = self._worse(result.status, degraded)
             return result
         age = now - result.observed_at
+        if age < -self._future_skew():
+            if self.allows_future_observed_at:
+                return result
+            result.notes = [
+                *result.notes,
+                f"observed_at_in_future_invalid by {(-age).total_seconds():.0f}s",
+            ]
+            result.status = SourceStatus.down
+            return result
         if age <= self.max_age:
             return result
         note = (
@@ -175,7 +228,7 @@ class SourceAdapter(ABC):
             result.status = SourceStatus.down
             result.notes = [*result.notes, "observation_too_old_for_safety"]
         else:
-            result.status = SourceStatus.stale
+            result.status = self._worse(result.status, SourceStatus.stale)
         return result
 
     async def fetch(self, spot: Spot, start: datetime, end: datetime) -> SourceResult:
@@ -272,7 +325,13 @@ class SourceAdapter(ABC):
                     timeout=self.timeout_s,
                 )
                 latency_ms = (time.monotonic() - t0) * 1000
-                validated = self._validate(raw)
+                try:
+                    validated = await asyncio.wait_for(
+                        asyncio.to_thread(self._validate, raw),
+                        timeout=self.validate_timeout_s,
+                    )
+                except asyncio.TimeoutError:
+                    raise PermanentFetchError("validator timed out (sync parse bounded)") from None
                 if validated is None:
                     raise PermanentFetchError("validator returned None/empty")
 

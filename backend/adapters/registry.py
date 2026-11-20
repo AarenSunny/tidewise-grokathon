@@ -13,6 +13,7 @@ from backend.adapters.daylight import DaylightAdapter
 from backend.adapters.epa_uv import EpaUvAdapter
 from backend.adapters.erddap import ErddapChlAdapter, ErddapSstAdapter
 from backend.adapters.ndbc import NdbcAdapter
+from backend.adapters.nws import NwsAlertsAdapter
 from backend.cache.base import CacheBackend
 from backend.cache.memory import MemoryTTLCache
 from backend.health import HealthMonitor
@@ -29,7 +30,15 @@ class AdapterRegistry:
         self._adapters: dict[str, SourceAdapter] = {}
         self._build()
 
+    # Forecast/prediction feeds: observed_at is the newest *predicted* point, so a future
+    # value is expected (review3 P3-2 keeps every other source strict).
+    _FORWARD_LOOKING = frozenset(
+        {"coops_tides", "coops_tides_interval", "coops_currents", "daylight_sunrise_api"}
+    )
+
     def _add(self, adapter: SourceAdapter) -> None:
+        if adapter.name in self._FORWARD_LOOKING:
+            adapter.allows_future_observed_at = True
         self._adapters[adapter.name] = adapter
         self.health.register(adapter.name)
 
@@ -46,6 +55,7 @@ class AdapterRegistry:
         self._add(CharmAdapter(c, health=h))
         self._add(CdphShellfishAdapter(c, health=h))
         self._add(NdbcAdapter(c, health=h))
+        self._add(NwsAlertsAdapter(c, health=h))
         self._add(EpaUvAdapter(c, health=h))
         self._add(BeachwatchBacteriaAdapter(c, health=h))
         self._add(DaylightAdapter(c, health=h))

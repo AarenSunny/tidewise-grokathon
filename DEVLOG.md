@@ -197,3 +197,12 @@ Branched from rebased `phase3-wip` onto `origin/main`. Cloud agents A/B own conc
 | N10 null satellite pixels | **defer** | adapter-owned (neighbourhood search). |
 | N11 emails in metadata | **won't fix** | history rewrite needs force-push; owner decision. Use GitHub noreply going forward. |
 | N12 doc drift | **fix** | REVIEW_1 triage table + this table in DEVLOG; REPORT.md labelled as a dated snapshot. |
+
+### Phase 3 core hardening (REVIEW_3) — interface changes during split
+Additive/strictening changes to frozen interfaces, all covered by `tests/test_hardening_review3.py`:
+| Interface | Change | Why |
+| --- | --- | --- |
+| `SourceAdapter._apply_freshness` (P3-2) | `observed_at is None` with a payload now means **not fresh** (status `stale`, `down` if `safety_critical`, note `observed_at_missing_not_fresh`). `observed_at` more than `max_future_skew` (default 5 min; class attr or `ADAPTER_MAX_FUTURE_SKEW_S`) in the future is **invalid** (status `down`, note `observed_at_in_future_invalid`). | Previously both cases skipped the check and returned `ok`. |
+| `SourceAdapter.allows_future_observed_at` (new, default `False`) | Forecast/prediction feeds opt in; `AdapterRegistry` sets it for `coops_tides`, `coops_tides_interval`, `coops_currents`, `daylight_sunrise_api` (their `observed_at` is the newest *predicted* point). | Keeps the strict rule for every observation feed without editing A/B adapter files. |
+| `SourceAdapter.validate_timeout_s` (new, 5 s) (REVIEW_1 #6) | `_validate` runs in `asyncio.wait_for(asyncio.to_thread(...))`; timeout is a `PermanentFetchError` -> `down`/stale-cache path. | A hung or slow sync parse can no longer block the event loop or the request. The worker thread cannot be killed; it is abandoned. Config YAML loads are startup-only/`lru_cache`d, not in the request path. |
+| `ScoredWindow` (REVIEW_1 #1) | New validator: `eligible=True` is rejected unless `gates` is non-empty and every gate has `passed=True` and `cannot_confirm=False`. | Closes the last default-deny hole in the model. |

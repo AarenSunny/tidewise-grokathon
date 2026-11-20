@@ -1,19 +1,113 @@
+# Swimming gates and weights. Cold-shock and bloom cutoffs are cited below
+# and in region.yaml. There is no national safe wave height (DATA_SOURCES.md B5);
+# wave anchors only rank windows.
 activity: swimming
 required_sources:
   - alerts_bacteria
   - nws_marine
   - satellite_chl
+  - sst
+daylight_margin_minutes: 30
+cold_shock:
+  # National Center for Cold Water Safety: 50–60°F is immediately
+  # life-threatening for unprotected immersion. Below 70°F is caution.
+  # Compared internally in °C. Fail at or below 60°F.
+  fail_at_or_below_f: 60
+  caution_below_f: 70
+bloom:
+  fail_above:
+    outer_coast: bloom_above_mg_m3
+    sf_bay: protective_max_mg_m3
+  at_risk_band:
+    sf_bay: [at_risk_low_mg_m3, at_risk_high_mg_m3]
+alert_patterns:
+  bacteria_advisory:
+    - bacteria
+    - coliform
+    - beach posting
+    - beach closure
+    - sewage
+    - water contact
+    - contamination
+  rip_high:
+    - high rip
+    - "rip current risk: high"
+    - beach hazards
+    - high surf
+window_phrase: daylight
+verdict_bands:
+  good_at_or_above: 0.75
+  fair_at_or_above: 0.45
 gates:
   - name: no_bacteria_advisory
-    rule: bacteria_advisory != true
+    rule: "bacteria_advisory not active"
     missing: cannot_confirm
+    sources: [alerts_bacteria]
+    unit: ""
+    advisory: true
+    blocked_reason: "beach bacteria advisory"
   - name: rip_current_not_high
-    rule: rip_current_risk != high
+    rule: "rip_current_risk != high"
     missing: cannot_confirm
+    sources: [nws_marine]
+    unit: ""
+    advisory: true
+    blocked_reason: "high rip or surf hazard"
   - name: no_bloom
-    rule: chl_bloom_flag != true
+    rule: "bloom_clear == true"
     missing: cannot_confirm
+    sources: [satellite_chl]
+    unit: "mg m^-3"
+    advisory: true
+    blocked_reason: "chlorophyll bloom"
+  - name: daylight
+    rule: "is_daylight == true"
+    missing: cannot_confirm
+    sources: []
+    unit: ""
+    display: daylight
+    blocked_reason: "outside daylight"
+  - name: cold_shock
+    rule: "cold_shock_clear == true"
+    missing: cannot_confirm
+    sources: [sst]
+    unit: "°C"
+    factor: water_temp
+    blocked_reason: "cold-shock water temperature"
 weights:
-  water_temp: 0.4
-  wave_height: 0.35
-  uv: 0.25
+  water_temp:
+    weight: 0.55
+    field: sst_c
+    aggregate: min
+    curve: piecewise_f
+    # 60°F scores low (top of the cold-shock band). 70°F is still caution.
+    anchors_f: [50, 60, 70, 78]
+    scores: [0.0, 0.15, 0.55, 1.0]
+    summary_name: water
+    unit: "°C"
+    summary_unit: "°C"
+    source: sst
+  wave_height:
+    weight: 0.45
+    field: wave_height_m
+    aggregate: max
+    curve: piecewise_ft
+    # Ranking heuristic only. B5: do not treat wave height as a safe-swim rule.
+    anchors_ft: [0, 1, 2, 3, 5]
+    scores: [1.0, 0.85, 0.55, 0.25, 0.0]
+    summary_name: waves
+    unit: m
+    summary_unit: m
+    source: ndbc_buoy
+  uv:
+    # POWER ALLSKY_SFC_UV_INDEX / UVB returned fill -999 (DATA_SOURCES.md §9).
+    # Weight stays in config at 0 so a missing UV index is not invented.
+    weight: 0.0
+confidence_penalties:
+  missing: 0.25
+  stale: 0.20
+  down: 0.35
+  degraded: 0.15
+  sentinel: 0.25
+  unknown: 0.25
+min_confidence_to_recommend: 0.60

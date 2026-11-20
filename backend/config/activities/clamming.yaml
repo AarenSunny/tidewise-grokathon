@@ -1,21 +1,124 @@
-# Clamming scorer config — refine from DATA_SOURCES.md Part B in Phase 5.
+# Clamming gates and weights. Thresholds are cited in comments; the scorer
+# reads the numbers below and does not hard-code them.
 activity: clamming
 required_sources:
   - coops_tides
   - alerts_shellfish
+  - satellite_chl
+# 14 CCR §29.20(a): no universal closed season for saltwater clams.
+# Live CDPH advisories are the biotoxin gate, not a blanket calendar close.
+# If this block is missing or confirmed is false, the season gate cannot_confirm.
+season:
+  confirmed: true
+  always_open: true
+tide_window:
+  # DATA_SOURCES.md B1: recreational digs need a minus tide, <= 0 ft MLLW.
+  # <= -0.5 ft is "good" and <= -1.5 ft is excellent on local guides.
+  # Tidewindow scores Pillar Point below about +1.0 ft, better toward -2.0 ft
+  # (https://thetidewindow.com/beaches/ca/pillar-point-ca/) — a UX curve only.
+  threshold_ft_mllw: 0.0
+  excellent_ft_mllw: -1.5
+  good_ft_mllw: -0.5
+  depth_weight: 0.7
+  duration_weight: 0.3
+  target_hours: 3
+# Legal light is 30 minutes before sunrise until 30 minutes after sunset
+# (14 CCR §29.20(b)). The daylight annotator uses this margin.
+daylight_margin_minutes: 30
+bloom:
+  # Hard fail when chlorophyll is above the region key in region.yaml.
+  fail_above:
+    outer_coast: bloom_above_mg_m3
+    sf_bay: protective_max_mg_m3
+  at_risk_band:
+    sf_bay: [at_risk_low_mg_m3, at_risk_high_mg_m3]
+alert_patterns:
+  shellfish_closure:
+    - shellfish
+    - biotoxin
+    - domoic
+    - mussel quarantine
+    - psp
+    - paralytic
+# Phrase used in ranked-window labels ("Best clamming: Sat 6:10-8:30 AM, minus tide").
+window_phrase: minus tide
+verdict_bands:
+  good_at_or_above: 0.75
+  fair_at_or_above: 0.45
 gates:
   - name: minus_tide
-    rule: tide_height_ft_mllw <= -0.5
+    # B1 minus tide. The -0.5 / -1.5 guides are score anchors, not this gate.
+    rule: "tide_height_ft_mllw <= 0"
     missing: cannot_confirm
+    sources: [coops_tides]
+    unit: "ft MLLW"
+    factor: tide_depth
+    blocked_reason: "tide is not a minus tide"
   - name: daylight
-    rule: is_daylight == true
+    rule: "is_daylight == true"
     missing: cannot_confirm
+    sources: []
+    unit: ""
+    display: daylight
+    blocked_reason: "outside legal daylight"
   - name: no_biotoxin_closure
     rule: "shellfish_closure not active"
     missing: cannot_confirm
+    sources: [alerts_shellfish]
+    unit: ""
+    advisory: true
+    blocked_reason: "CDPH biotoxin quarantine"
   - name: season_open
-    rule: season_open == true
+    rule: "season_open == true"
     missing: cannot_confirm
+    sources: []
+    unit: ""
+    display: season
+    blocked_reason: "clam season is closed"
+  - name: no_bloom
+    rule: "bloom_clear == true"
+    missing: cannot_confirm
+    sources: [satellite_chl]
+    unit: "mg m^-3"
+    advisory: true
+    blocked_reason: "chlorophyll bloom"
 weights:
-  tide_depth: 0.6
-  window_length: 0.4
+  tide_depth:
+    weight: 0.55
+    field: tide_height_ft_mllw
+    aggregate: min
+    curve: piecewise
+    # Lower (more negative) is better exposure. Anchors from B1.
+    anchors: [-2.0, -1.5, -0.5, 0.0, 1.0]
+    scores: [1.0, 1.0, 0.75, 0.45, 0.0]
+    summary_name: tide
+    unit: "ft MLLW"
+    summary_unit: ft
+    source: coops_tides
+  window_length:
+    weight: 0.35
+    curve: hour_fraction
+    target_hours: 3
+    summary_name: window
+    unit: h
+    summary_unit: h
+    source: coops_tides
+  moon_phase:
+    # Larger tidal ranges near new and full moon (DATA_SOURCES.md B3), which
+    # is when minus tides run deeper. Offline lunar phase, 0 = new, 0.5 = full.
+    weight: 0.10
+    field: moon_phase
+    aggregate: mean
+    curve: spring_tide
+    summary_name: moon
+    unit: phase
+    summary_unit: phase
+    source: offline_lunar
+confidence_penalties:
+  missing: 0.25
+  stale: 0.20
+  down: 0.35
+  degraded: 0.15
+  sentinel: 0.25
+  unknown: 0.25
+min_confidence_to_recommend: 0.60

@@ -209,28 +209,152 @@ SRF CAZ509 snippet: Northwest Facing Beaches **12 to 16 feet**; High Surf Adviso
 
 ---
 
-### 6. California shellfish / biotoxin closures (CDPH / CDFW)
+#### C-HARM availability (update 2026-11-19) (Pseudo-nitzschia / domoic acid probability) — **availability status: FLAPPING + STALE**
 
-- **No public JSON API found.** Reliable pages (scrapable HTML / news list):  
-  - `https://www.cdph.ca.gov/Programs/OPA/Pages/Shellfish-Advisories.aspx` (updated 2026-11-17; annual mussel quarantine ended 2026-10-31; Dungeness/anchovy advisories active elsewhere)  
-  - Recreational shellfish map (ArcGIS): item/dashboard linked from CDPH; MapTools appid `42a78fba680c4c43970cfc5dfe878d8d`  
-  - `https://wildlife.ca.gov/Fishing/Ocean/Health-Advisories` (CDFW implements closures when toxins meet federal action levels; Domoic Acid Closure Info Line **(831) 649-2883**)
-- **Structure:** reverse-chronological press releases with county names and lat bounds (e.g. Pigeon Point 37°11'N). Parse titles for “Warns”/“Lifts”/“Quarantine”.
-- **Auth:** none
-- **Update:** irregular; snapshot + `last_verified` required
-- **Backup:** phone lines; county EH posts
+**Datasets (CoastWatch West Coast ERDDAP, `https://coastwatch.pfeg.noaa.gov/erddap`):** `wvcharmV3_0day` (nowcast), `wvcharmV3_1day`, `wvcharmV3_2day`, `wvcharmV3_3day` (forecasts); `charmForecast0dayV2` is a legacy v2 dataset that ends **2022-11-30** — do not use.
+
+- Variables: `pseudo_nitzschia`, `particulate_domoic`, `cellular_domoic`, `chla_filled`, `r486_filled`, `r551_filled`, `salinity`, `water_temparture` (typo is upstream). Fill `-99999.0` (JSON `null`).
+- **Lon convention: 0–360** (axis 232.5–243.0 → −127.5…−117.0 °E); grid 0.03°, lat 31.3–43.0 (391 lat × 351 lon values; `info` verified 2026-11-19 16:04 PST), time axis 1,166 values (not evenly spaced).
+- Working query (2026-11-19 15:57 PST):  
+  `https://coastwatch.pfeg.noaa.gov/erddap/griddap/wvcharmV3_0day.json?pseudo_nitzschia[(last)][(37.7):1:(37.7)][(237.2):1:(237.2)]`  
+  → `["2026-11-02T12:00:00Z", 37.69, 237.21, 0.9121059]`
+
+**Latest data time (from dataset `time_coverage_end` and `(last)` queries):**
+
+| Dataset | Last time (UTC) | Age on 2026-11-19 |
+|---------|-----------------|-------------------|
+| `wvcharmV3_0day` | 2026-11-02T12:00:00Z | **~17 days** |
+| `wvcharmV3_1day` | 2026-11-03T12:00:00Z | ~16 days |
+| `wvcharmV3_3day` | 2026-11-05T12:00:00Z | ~14 days |
+
+**Timed probe log (all America/Los_Angeles, 2026-11-19):**
+
+| Time (PST) | Result |
+|-----------|--------|
+| session start (morning) | C-HARM queries OK |
+| ~15:35–15:45 | **404 "Currently unknown datasetID"** for C-HARM IDs on `coastwatch.pfeg.noaa.gov` |
+| ~15:50 | **200** again on coastwatch.pfeg |
+| 15:57:43, 15:57:53, 15:58:02, 15:58:12, 15:58:21 | 5 consecutive probes of `wvcharmV3_0day` and `_1day`: **all 200 in 0.57–0.86 s**; data unchanged (`2026-11-02` / `2026-11-03`) |
+| 16:01:38 | `coastwatch.pfeg.noaa.gov` info → **200**; `oceanview.pfeg.noaa.gov` info for `wvcharmV3_0day` → **404** |
+| 16:02:27 | info → **200 but took 23.4 s** |
+| 16:03:05, 16:03:22, 16:03:39 | info → **503** (1.5–1.7 s) for `wvcharmV3_0day`; also 503 for `wvcharmV3_2day`, `wvcharmV3_0day_LonPM180`, `charmForecast0dayV2` (so the 503 hit the whole server, not just one dataset) |
+| 16:04:02 | info → **200** (0.86 s) |
+
+**Honest status:** C-HARM on CoastWatch is **intermittently unregistered** (404 "unknown datasetID" ~15:35–15:45; 503s and one 23-second response at 16:02–16:03 PST) rather than permanently down — **but the data itself has not advanced since 2026-11-02**, so it is **~17 days stale** and must **not** be shown as a "current" HAB probability. Engineering rule: check `time_coverage_end`/`(last)` age on every call; if > 3 days, display "C-HARM stale — last model run 2026-11-02" and fall back to CDPH advisories (§6) + VIIRS chl tiers (§5a-ii). Retry 404/503 with backoff (1–2 min) before declaring it down. `oceanview.pfeg.noaa.gov` returned 404 for `wvcharmV3_0day` at 16:01 PST — not a usable C-HARM fallback as of that probe.
+
+**Bloom / toxin probability thresholds encoded in `long_name`:**
+
+| Variable | Threshold |
+|----------|-----------|
+| `pseudo_nitzschia` | P(cells **> 10,000 L^-1**) |
+| `particulate_domoic` | P(pDA **> 500 ng L^-1**) |
+| `cellular_domoic` | P(cDA **> 10 pg cell^-1**) |
+
+**Probe:** `scripts/research_probes/08_charm_status.py` (updated: timed repeat probes + data age)  
+**Verified on:** 2026-11-19 (probes 15:50–15:58 PST)
 
 ---
 
-### 7. Beach bacteria / water quality
+### 6. California shellfish / biotoxin closures (CDPH / CDFW) — live-source update 2026-11-19
 
-- **SF API (verified):** `https://data.sf.gov/resource/v3fv-x3ux.json?$where=analyte%20IS%20NOT%20NULL&$order=sample_date%20DESC&$limit=...`  
-  Fields: `source`, `sample_date`, `analyte` (`ENTERO`,`COLI_TOTAL`,`COLI_FECAL`), `data` (string; may be `<5`, `>16000`).  
-  Sample 2026-11-17: OCEAN#22_SL ENTERO **10**; BAY#320_SL ENTERO **2143**.
-- **Thresholds:** EPA RWQC BAV **70 cfu/100 mL** enterococci (culture); CA counties often post using AB411 **104** — prefer posted status when available.
-- **BeachWatch** `beachwatch.waterboards.ca.gov` — HTML forms; **no clean public API verified**. EPA **BEACON** — no clean API (lead held).
-- **San Mateo / Pacifica:** county EH beach pages (HTML snapshot) — curl to smchealth was not fully parsed this session; treat as scrape + snapshot.
-- **Backup:** SFPUC beach pages / hotline 415-242-2214
+**There is no public REST/JSON "current advisory status" feed.** The authoritative *live, dated* source is the CDPH news-release list (HTML), cross-checked with the hotline and CDFW in-season page.
+
+#### 6a. Live, dated sources (verified 2026-11-19 ~15:58 PST)
+
+| Source | URL | What it gives | Live? |
+|--------|-----|---------------|-------|
+| **CDPH Shellfish & Seafood Advisories (news list)** | https://www.cdph.ca.gov/Programs/OPA/Pages/Shellfish-Advisories.aspx | Dated press releases ("Month D, YYYY — …"); newest at top. Scrape headline + date + body. | **Yes** — newest item Nov 17, 2026 |
+| CDPH Annual Mussel Quarantine | https://www.cdph.ca.gov/Programs/CEH/DRSEM/Pages/EMB/Shellfish/Annual-Mussel-Quarantine.aspx | Quarantine rules/window | 200; states "The annual quarantine is normally in effect from May 1 through October 31." |
+| CDPH Marine Biotoxin Monitoring Program | https://www.cdph.ca.gov/Programs/CEH/DRSEM/Pages/EMB/Shellfish/Marine-Biotoxin-Monitoring-Program.aspx | 200; program description (not parsed for data) | Static |
+| CDPH Domoic Acid page (crab/lobster test results) | https://www.cdph.ca.gov/Programs/CEH/DRSEM/Pages/EMB/Shellfish/Domoic-Acid.aspx | "Analytical Data – Crabs" (referenced by CDFW releases) | Page loads (200, 438 KB). I found **no "Analytical Data" table text in the HTML** (body is mostly the shared news archive), so crab test results were **not** verified from it |
+| CDFW In-Season Regulation Changes (dated) | https://wildlife.ca.gov/Fishing/Ocean/Regulations/Inseason | Dated fishery delays/closures tied to CDPH/OEHHA | **Yes** — newest Nov 17, 2026 |
+| CDFW Fishery closure / health advisories | https://wildlife.ca.gov/Fishing/Ocean/Health-Advisories | (not parsed) | Page loads (200) |
+| OEHHA Dungeness memos | e.g. https://oehha.ca.gov/sites/default/files/media/2026-10/FINAL%20DungenessCrab_RecFisheryMemo_103026.pdf | Dated recommendations with sample tables | Per-event PDFs |
+| **Phone lines** | CDPH Shellfish Information Line **(800) 553-4133**; Biotoxin line (510) 412-4643 | Recorded advisories | Human-only |
+| CDPH RSS / GovDelivery | `…/Programs/OPA/Pages/NR_RSS.aspx` → **404**; `/Pages/RSS.aspx` → **404**; `public.govdelivery.com/accounts/CACDPH/subscriber/new` → **404**; `/_layouts/15/listfeed.aspx` → 200 HTML (not a feed) | — | **No RSS found** |
+
+**Scrape structure (news list):** SharePoint page; each release = a headline line starting `CDPH …` (e.g. "CDPH Updates Northern Anchovy Consumption Advisory for Central California Waters") followed by a line beginning with the date, `November 17, 2026 — The California Department of Public Health (CDPH) …`. The page also embeds older archive lists (e.g. "News Releases 2017" links such as "CDPH Lifts Rock Crab Health Advisory in Portions of San Mateo County - South of Pillar Point") — **ignore items without a 2026 date**. Parse by regex `^(Month) \d{1,2}, 20\d\d —`.
+
+#### 6b. TLS status of CDPH hosts (diagnosed 2026-11-19 ~15:58 PST)
+
+| Host | Strict TLS | Cause | Workaround |
+|------|-----------|-------|-----------|
+| `https://www.cdph.ca.gov/…` | **FAILS** — curl exit 60 / `verify=20`, `openssl: unable to verify the first certificate (21)`, Python `CERTIFICATE_VERIFY_FAILED` | Server presents leaf issued by **"Sectigo Public Server Authentication CA OV R36"** but sends a *different* intermediate ("Sectigo RSA Organization Validation Secure Server CA"), so the issuing intermediate is missing from the chain | **Preferred:** download the missing intermediate from the cert's AIA URL `http://crt.sectigo.com/SectigoPublicServerAuthenticationCAOVR36.crt` (DER; `openssl x509 -inform DER -out r36.pem`), append to the system CA bundle, and pass as `curl --cacert bundle.pem` / `requests.get(verify='bundle.pem')`. Verified: **HTTP 200, verify=0**. Quick-and-dirty: `curl -k` (probe only; do not ship). |
+| `https://cdph.ca.gov/…` (apex) | **OK** (verify=0) but 302-redirects to `www.` (which fails) | — | Use apex only for the redirect check |
+
+Leaf cert validity (openssl, 2026-11-19): notBefore Dec 31 2025, **notAfter Dec 31 2026** — re-check after rotation. `wildlife.ca.gov`, `smchealth.org`, `data.ca.gov` and `data.sf.gov` fetched fine with default TLS in this session; `oehha.ca.gov` and `webapps.sfpuc.org` were fetched using the bundle above (system roots + R36), so their strict-TLS status was not isolated.
+
+#### 6c. CURRENT advisories affecting our coast (quoted from the CDPH list, retrieved 2026-11-19)
+
+**Honest conclusion: no active CDPH bivalve closure/quarantine and no Dungeness "do not eat" advisory currently covers Marin, San Francisco, or San Mateo (Half Moon Bay / Pacifica / SF Bay) — except the standing viscera recommendation and the anchovy advisory below.**
+
+- **Annual mussel quarantine — ended.** Oct 28, 2026: "…the statewide annual quarantine on mussels taken for human consumption by sport-harvesters from California's ocean waters ends at midnight on Saturday, October 31, 2026." Source: https://www.cdph.ca.gov/Programs/OPA/Pages/Shellfish-Advisories.aspx (normal window May 1–Oct 31 per the Annual-Mussel-Quarantine page).
+- **San Mateo County bivalve advisory — lifted.** May 26, 2026: "The California Department of Public Health (CDPH) has lifted the shellfish safety notification today related to sport-harvested bivalve shellfish from San Mateo County."
+- **Anchovy advisory touching our southern boundary (current).** Nov 17, 2026: "The California Department of Public Health (CDPH) has updated its advisory for northern anchovies to include waters between: Pigeon Point, San Mateo County (37⁰ 11.00' N. lat.) and Point Lobos, Monterey County (36⁰ 31.46' N. Lat.)". CDFW In-Season (headline "Recreational Anchovy Take Restrictions Lifted in Monterey Bay", dated November 17, 2026), separately: "The recreational "bait only" fishing restriction for northern anchovy in the Monterey Bay area has been lifted, after state health agencies determined northern anchovy no longer poses a human health risk. The restriction prohibiting the commercial distribution of northern anchovy seafood products for human consumption remains in effect." (Sources: CDPH list above; https://wildlife.ca.gov/Fishing/Ocean/Regulations/Inseason.) Relevance: only Pigeon Point/south San Mateo and south — not HMB/Pacifica.
+- **Nearest active Dungeness domoic-acid advisory (far north).** Nov 9, 2026: "The California Department of Public Health (CDPH) is warning the public not to consume any part of sport-harvested Dungeness crab (meat or viscera), caught from an area of the Northern California coast due to dangerous levels of domoic acid." Area per CDFW declaration (https://nrm.dfg.ca.gov/FileHandler.ashx?DocumentID=247966&inline=): "…from the southern boundary of the Reading Rock State Marine Protected Areas (41⁰ 17.6' N. latitude) to the southern boundary of the Ten Mile State Marine Reserve (39⁰ 33.3' N. latitude)." (~200+ nautical miles north of Half Moon Bay.) CDFW closure: https://wildlife.ca.gov/News/Archive/additional-recreational-dungeness-crab-area-delay-in-portions-of-humboldt-county-due-to-public-health-hazard (Nov 5, 2026).
+- **Standing guidance that DOES apply locally.** OEHHA memo, Oct 30, 2026: "For other sections of the coast that will be open for recreational harvesting of Dungeness crab, CDPH and OEHHA continue to strongly recommend that consumers avoid eating the viscera (internal organs, also known as “butter” or “guts”) because they usually contain much higher levels of domoic acid than the meat." (https://oehha.ca.gov/sites/default/files/media/2026-10/FINAL%20DungenessCrab_RecFisheryMemo_103026.pdf)
+- **Other nearest non-local items on the list:** Monterey County bivalve warning Sept 14, 2026 → lifted Oct 12, 2026; Del Norte razor clam warning Oct 9, 2026; a San Luis Obispo County bivalve warning headline is present (date not extracted).
+
+**Rule for the app:** treat "no active local CDPH advisory" as true only if the news list was fetched within the last 24 h and contains no 2026-dated release naming San Mateo/SF/Marin; always show the hotline number and a "last checked" timestamp.
+
+#### 6d. CDPH ArcGIS layers — **NOT live status (static pins)**
+
+The ArcGIS Feature Services behind the CDPH map were verified to *query* successfully but their **data is old**. `editingInfo` from the REST metadata (retrieved 2026-11-19):
+
+| Layer | URL (…/arcgis/rest/services/…) | lastEditDate |
+|-------|-------------------------------|--------------|
+| "Health Advisory Symbols (Red)" | `services2.arcgis.com/wi1yEacfYjH5viqb/arcgis/rest/services/Health_Advisory_Symbols_(Red)/FeatureServer/0` | **2020-08-25** |
+| "Areas" (service `California_Coastal_Counties`, layer 3) | `…/California_Coastal_Counties/FeatureServer/3` | **2020-08-26** |
+| "Areas" (service `All_Bivalve_Shellfish_Health_Advisory_Special_Advisory`, layer 3) | `…/All_Bivalve_Shellfish_Health_Advisory_Special_Advisory/FeatureServer/3` | **2025-07-10** |
+
+The "Health Advisory Symbols (Red)" layer has fields `County_Name`, `Latitude`, `Longitude` (no status or date field) and last edit **2020-08-25** — **static pins, not usable as live closure status**. The two other layers (both named "Areas") have fields incl. `TITLE`, `DESCRIPTION`, `DATE`, `TYPEID`, but last edits of 2020-08-26 and 2025-07-10, so neither reflects Nov 2026 events. (Feature counts and the CDPH web-map item modified date were not re-verified this round.) **Do not render a layer's presence as "advisory active".**
+
+**Probe:** `scripts/research_probes/11_cdph_live.sh`  
+**Verified on:** 2026-11-19 (15:57–16:05 PST)
+
+---
+
+### 7. Beach bacteria / water quality — live-source update 2026-11-19
+
+**Bottom line (verified 2026-11-19 ~15:59 PST):** SWRCB BeachWatch (data.ca.gov) is **not live** — it ends in 2026-03 — but **two county-level feeds ARE live and dated within 2 days**: San Francisco (DataSF Socrata API) and San Mateo (County Health posting pages + RSS/WP-JSON).
+
+#### 7a. San Francisco — DataSF "Beach Water Quality Monitoring" (**LIVE, queryable JSON**)
+- Dataset id **`v3fv-x3ux`**; landing https://data.sf.gov/d/v3fv-x3ux ; API base `https://data.sf.gov/resource/v3fv-x3ux.json` (`data.sfgov.org` 301-redirects here; use `curl -L`).
+- Auth: none (Socrata app token optional for rate limits). Fields: `source` (station id), `sample_date`, `analyte`, `data` (string), `uniqueid`, `data_as_of`, `data_loaded_at`.
+- **Freshness:** `max(sample_date)` = **2026-11-17**; `data_as_of` = 2026-11-18T23:01:59 ; 21,801 rows.
+- Query examples (verified):  
+  `https://data.sf.gov/resource/v3fv-x3ux.json?$where=sample_date>'2026-11-01'&$order=sample_date DESC&$limit=10` (URL-encode spaces)  
+  `…?$select=source,max(sample_date) as last&$group=source&$order=last DESC&$limit=8`
+- Real sample:
+```json
+{"source":"OCEAN#22_SL","sample_date":"2026-11-17T00:00:00.000","analyte":"ENTERO","data":"10","data_as_of":"2026-11-18T23:01:59.000"}
+{"source":"BAY#320_SL","sample_date":"2026-11-17T00:00:00.000","analyte":"ENTERO","data":"2143"}
+{"source":"BAY#202.4_SL","sample_date":"2026-11-17T00:00:00.000","analyte":"COLI_TOTAL","data":"<10"}
+```
+- Analytes: `ENTERO` (Enterococcus), `COLI_FECAL`, `COLI_TOTAL` (MPN/100 mL). **Quirks:** `data` is a **string** and may carry qualifiers (`<5`, `<10`); sorting `sample_date` uses the lowercase column name (`SampleDate` → error). No lat/lon in this dataset: **join `source` to BeachWatch station table** (`https://data.ca.gov/api/3/action/datastore_search?resource_id=98e628ff-d012-4982-ad32-b9f9ad8ab524&q=OCEAN%2322`) where `AgencyStationIdentifier` = `source`, e.g. `OCEAN#22_SL` → "Fort Funston", Ocean Beach, 37.71526, −122.50476; `BAY#301.2_SL` → "Jack Rabbit Beach", beach name Candlestick Point (both verified in the station table). (Station table is static — good for geometry.)
+- **Thresholds (state single-sample maxima, as quoted by San Mateo County):** total coliform 10,000; E. coli 400; Enterococcus 104 MPN/100 mL (geometric mean limits 1,000 / 200 / 35). Apply to SF `ENTERO` 104 for a simple flag.
+- Human-facing: SFPUC map https://webapps.sfpuc.org/sapps/beachesandbay.html (200; page text lists 877-SFBEACH / 877-732-3224); program page https://sfwater.org/index.aspx?page=87 (200).
+
+#### 7b. San Mateo County Environmental Health (**LIVE, dated HTML + RSS**)
+- Program page: https://smchealth.org/division/divisions/environmental-health-services/permits-business-services/water-protection-and-land-use/beach-creek-monitoring-program/ (200). Page states: "San Mateo County routinely tests 43 sites each week" and "Sites are sampled every Monday morning by a combination of County staff and volunteers, primarily associated with the local chapter of the Surfrider F[oundation]". Contact number on page: 650-372-6200 (County Environmental Health Services).
+- **Posting pages are WordPress posts.** Latest (retrieved 2026-11-19): https://smchealth.org/8-27-beach-and-creek-updates/ — title "11/18/26 Beach and Creek Updates", "Posted on November 18, 2026 … based off samples collected November 16, 2026". (Slug is stale/reused; **discover the newest post by title/date, not slug**.)
+- **Discovery:** `https://smchealth.org/wp-json/wp/v2/posts?search=Beach%20and%20Creek%20Updates&per_page=3&_fields=id,date,slug,link,title` → `[{"id":1964,"date":"2026-11-18T09:30:34","slug":"8-27-beach-and-creek-updates","link":"https://smchealth.org/8-27-beach-and-creek-updates/","title":{"rendered":"11/18/26 Beach and Creek Updates"}}]` (200); RSS `https://smchealth.org/feed/` (200, `application/rss+xml`) also lists these posts (pubDate Wed, 18 Nov 2026 17:30:34 +0000).
+- **Structure:** headings `BEACH (PACIFIC-SIDE) POSTINGS:`, `CREEK POSTINGS:`, `BEACH (BAYSIDE) POSTINGS:` then one site per line. Quoted current list (11/18/26): Pacific-side — "Linda Mar #5 (Linda Mar Blvd.)", "Fitzgerald Marine Reserve", "Pillar Point #5 (Capistrano Beach)", "Pillar Point #7 (Surf-West Point Ave)", "Pillar Point #9 (Outer Harbor)", "Venice Beach"; creeks — San Pedro, San Vicente (at Fitzgerald), North Roosevelt, Gazos; Bayside — Aquatic Park, Kiteboard Beach, Oyster Point, Lakeshore Park, Erckenbrack Park, Gull Park, Marlin Park. **The list is POSTINGS (sites with elevated bacteria); a site absent from the list is "not posted", not necessarily "sampled and clean".**
+- Interactive map service `https://gis.smcgov.org/maps2/rest/services/HEALTH/BEACH_MONITORING_PRJ/MapServer` → **HTTP 500 "Service … not started"** today (map backend down; do not depend on it).
+- Older URL `smchealth.org/beach-monitoring` → 404 (replaced by the URL above).
+- Latency: samples Monday → posting typically Tue/Wed; stated lag ≈ 2 days. Cadence weekly.
+
+#### 7c. SWRCB BeachWatch (data.ca.gov) — **STALE; historical only**
+Queried `datastore_search_sql` 2026-11-19 (max `SampleDate` in bacteria results): **San Mateo 2026-03-02**, **San Francisco 2025-10-28**, **Marin 2025-10-31**, all California **2026-03-05**; advisories table max `DateofAdvisory` **2026-03-06**. Use for station geometry and long-term history only. Resource IDs: advisories `d5cd6a23-829c-426d-a63e-689a55a3db9c`, bacteria `7bd961cf-abe4-433b-8033-378161237ff3`, stations `98e628ff-d012-4982-ad32-b9f9ad8ab524`.
+
+#### 7d. Heal the Bay Beach Report Card / Surfrider BWTF
+- `https://beachreportcard.org/` → 200 (HTML SPA); `https://beachreportcard.org/api/v1/locations` → 200 but **6,788 bytes of `text/html`** (a shell, not JSON — only this path tested); `https://api.healthebay.org/` → connection failed (curl code 000). **No machine-readable API confirmed** (not exhaustively searched). Report-card grades are seasonal/annual anyway.
+- Surfrider Blue Water Task Force https://www.surfrider.org/programs/blue-water-task-force → 200 (program page; no queryable feed found). The San Mateo program page says its Monday sampling is done by County staff and volunteers "primarily associated with the local chapter of the Surfrider F[oundation]"; results are published via the County posts above.
+
+**Recommended best-available stack:** SF = DataSF `v3fv-x3ux` (daily, JSON) ; San Mateo = County posting post (weekly, scrape via WP-JSON/RSS) ; both with a "sampled {date}, posted {date}" staleness caveat (typically 2–9 days old) and the rule "avoid ocean contact during and 3 days after storms; stay 300 ft from creek mouths/storm drains" (San Mateo County Health program page: "avoid swimming in ocean waters during and for three days after a storm. When swimming in ocean waters, stay at least 300 feet away from flowing storm drains and creek mouths."). Fall back to BeachWatch only as "no recent data".
+
+**Probe:** `scripts/research_probes/12_beach_live.sh`  
+**Verified on:** 2026-11-19 (15:59–16:05 PST)
 
 ---
 
@@ -300,14 +424,15 @@ SRF CAZ509 snippet: Northwest Facing Beaches **12 to 16 feet**; High Surf Adviso
 
 ## Risks & Unverified
 
-- **Unverified (not called/sourced):** Part B clamming tide range, crabbing slack/moon guidance, swim temp ranges, shoreline orientations, Open-Meteo, AB411 104 threshold (cited from a secondary site only), San Mateo County beach posting pages, FIRMS with a real key.
+- **Unverified (not called/sourced):** Part B clamming tide range, crabbing slack/moon guidance, swim temp ranges, shoreline orientations, Open-Meteo, AB411 104 threshold (cited from a secondary site only), FIRMS with a real key.
 - Live SST reads unusually warm (MUR 18.3°C, +5.0°C anomaly; NDBC WTMP 18.8–18.9°C) — consistent across sources but cross-check before demo.
 
 - `coastwatch.noaa.gov` and `polarwatch.noaa.gov` ERDDAP **502** today; rely on **pfeg** + OceanWatch backup.
 - OceanWatch `noaacwBLENDEDsstDaily` **404** despite appearing in search index.
 - NASA POWER **UV index** all `-999` in tested window; use EPA UV for forecasts.
-- CDPH page sometimes fails datacenter curl (**HTTP 000**); WebFetch succeeded — scrapers need retries/browser fallback; use snapshots.
-- San Mateo/Pacifica bacteria **posting pages** not fully structured in this pass (SF Socrata was).
+- CDPH `www.` host TLS: server omits the Sectigo OV R36 intermediate, so strict verification fails (curl 000/exit 60); fix in §6b (append AIA intermediate to the CA bundle). CDPH ArcGIS layers are static 2020 pins, not live status. No CDPH RSS.
+- Beach bacteria: live sources are DataSF `v3fv-x3ux` and the San Mateo County posting posts (§7); SWRCB BeachWatch ended (San Mateo 2026-03-02, SF 2025-10-28). San Mateo list = postings only; County GIS MapServer 500.
+- **C-HARM is flapping (404/503/23 s) and ~17 days stale** (last model time 2026-11-02T12:00Z) — do not show as current; see C-HARM availability above.
 - EONET “open” wildfires can be **years** old — always check geometry dates; FIRMS key not registered in this session (endpoint shape verified via error).
 - PACE chlorophyll on ERDDAP **not verified**.
 - Exact legal “chlorophyll closes clam beds” threshold **unverified** — CDPH toxin results gate harvest.
@@ -315,3 +440,4 @@ SRF CAZ509 snippet: Northwest Facing Beaches **12 to 16 feet**; High Surf Adviso
 - NWS SRF rip lines **absent** today — parser must tolerate missing section.
 - Station `46239` stale; `TIBC1`/`HMBC1` 404.
 
+> Long-form regulation quotes (hoop nets, loop traps, §29.80/§28.65), sunrise APIs and the earlier detailed notes are in `grok-sessions/research/DATA_SOURCES_full.md` (the previous long version of this file; still in git history at ed08814).
