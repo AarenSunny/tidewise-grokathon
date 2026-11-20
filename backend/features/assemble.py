@@ -214,16 +214,19 @@ def _chlorophyll(
 
 
 def _shellfish_alerts(payload: Any, spot: Spot) -> list[str]:
-    alerts: list[str] = []
-    county = spot.county
-    counties = _get(payload, "region_counties_with_symbol") or []
-    if county and county in counties:
-        alerts.append("shellfish biotoxin advisory")
-    for item in _get(payload, "special_advisories") or []:
-        if _get(item, "visible") is True:
-            title = _get(item, "title") or "advisory"
-            alerts.append(f"shellfish biotoxin {title}")
-    return alerts
+    """Only an explicit CDPH boolean is a clear or a closure.
+
+    County pins and free text are not a pass. ``any_region_advisory`` left
+    unset stays off the alert list so the shellfish gate cannot_confirm.
+    """
+
+    del spot  # county pins are not a dated closure status
+    advisory = _get(payload, "any_region_advisory")
+    if advisory is True:
+        return ["any_region_advisory=true", "cdph_closure=true"]
+    if advisory is False:
+        return ["any_region_advisory=false", "cdph_closure=false"]
+    return []
 
 
 def _beach_alerts(payload: Any) -> list[str]:
