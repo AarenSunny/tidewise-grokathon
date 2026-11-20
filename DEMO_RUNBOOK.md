@@ -53,7 +53,7 @@ https://tidewise-api.onrender.com/recommend?activity=crabbing&spot=pillar_point_
 7. **1:30** Optional: open the raw API URL above in the second tab to show `factors[].source`, `gates[].evidence` and `eligible: false`.
 8. **1:45** Close: "TideWise would rather say *check before you go* than invent a green light."
 
-**Do not open the "Quick score" tab during judging.** It calls `/score`, which returns fixed heuristic scores (for example swimming 62/100, or clamming 74/100 for a night-time window). No safety gates are applied there, yet the card is labeled "Live recommendation". It contradicts the Planner. Swimming and Sailing in the Planner are live but show every window as "Check before you go", and sailing scores 0, because there is no NWS marine/alerts mapping and no forward wind/wave data. Skip both.
+**Do not open the "Quick score" tab during judging.** It calls `/score`, which returns fixed heuristic scores (for example swimming 62/100, or clamming 74/100 for a night-time window). No safety gates are applied there, and the card is labeled "Unscreened timing estimate". It contradicts the Planner. Swimming and Sailing in the Planner are live but show every window as "Check before you go", and sailing scores 0, because there is no NWS marine/alerts mapping and no forward wind/wave data. Skip both.
 
 ## 90-second narration
 
