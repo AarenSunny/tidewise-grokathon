@@ -72,7 +72,7 @@ export type GateState = 'pass' | 'fail' | 'cant-confirm';
 export interface GateView {
   name: string;
   state: GateState;
-  label: 'Pass' | 'Fail' | "Can't confirm";
+  label: 'Pass' | 'Fail' | 'Check advisory';
   reason: string;
 }
 
@@ -82,7 +82,7 @@ export function toGateView(gate: GateResult): GateView {
     return {
       name: gate.name,
       state: 'cant-confirm',
-      label: "Can't confirm",
+      label: 'Check advisory',
       reason: gate.reason,
     };
   }
