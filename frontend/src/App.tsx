@@ -204,9 +204,8 @@ export function App() {
                 onSelectActivity={setActivity}
               />
               {!(
-                activity === 'crabbing' &&
                 loaded.dataMode === 'live' &&
-                (loaded.liveResponse || loaded.response)
+                hasLiveWindows(loaded.liveResponse ?? loaded.response)
               ) && (
               <PlannerControls
                 day={viewModel.day}
@@ -217,8 +216,7 @@ export function App() {
               )}
             </div>
 
-            {activity === 'crabbing' &&
-            loaded.dataMode === 'live' &&
+            {loaded.dataMode === 'live' &&
             hasLiveWindows(loaded.liveResponse ?? loaded.response) ? (
               <div className="mt-6">
                 {loaded.backendNote && (
@@ -232,7 +230,7 @@ export function App() {
                 <LiveWindowsByDay
                   response={loaded.liveResponse ?? loaded.response}
                   spots={loaded.spots}
-                  activityLabel="Crabbing"
+                  activityLabel={activity.charAt(0).toUpperCase() + activity.slice(1)}
                 />
                 <div className="mt-6">
                   <LiveSourcesPanel
@@ -242,9 +240,9 @@ export function App() {
                   />
                 </div>
               </div>
-            ) : activity === 'crabbing' && loaded.dataMode === 'fallback' ? (
+            ) : activity !== 'clamming' && loaded.dataMode !== 'preview' ? (
               <div className="mt-6 rounded-[16px] border border-sand-200 bg-white px-5 py-8 text-sm text-navy-700 shadow-[var(--shadow-card)]">
-                Live crabbing windows are unavailable. Switch to Clamming to
+                Live {activity} windows are unavailable right now. Switch to Clamming to
                 review the example planner, or retry after the backend is
                 reachable.
               </div>
