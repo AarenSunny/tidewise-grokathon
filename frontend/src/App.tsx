@@ -13,7 +13,10 @@ import { ScoreWindowCard } from './components/ScoreWindowCard';
 import { SchematicMap } from './components/SchematicMap';
 import { TimelineChart } from './components/TimelineChart';
 import {
+  CRABBING_GEAR,
+  CRABBING_GEAR_OPTIONS,
   PLANNER_ACTIVITIES,
+  type CrabbingGear,
   hasLiveWindows,
   recommendParamsForActivity,
 } from './lib/crabbing';
@@ -40,14 +43,15 @@ export function App() {
   const [activity, setActivity] = useState<Activity>(
     forcePreview ? 'clamming' : 'crabbing',
   );
+  const [crabbingGear, setCrabbingGear] =
+    useState<CrabbingGear>(CRABBING_GEAR);
   const [loaded, setLoaded] = useState<LoadedPlannerData | null>(null);
   const [loadState, setLoadState] = useState<'loading' | 'ready'>('loading');
-  const [page, setPage] = useState<'planner' | 'score'>('planner');
 
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
-    const recParams = recommendParamsForActivity(activity);
+    const recParams = recommendParamsForActivity(activity, crabbingGear);
     setLoadState('loading');
 
     void (async () => {
@@ -75,7 +79,7 @@ export function App() {
       cancelled = true;
       controller.abort();
     };
-  }, [activity]);
+  }, [activity, crabbingGear]);
 
   const selectedAvailability = useMemo(
     () =>
@@ -139,7 +143,7 @@ export function App() {
         }
       />
 
-      {page === 'planner' && loaded && loaded.exampleBannerText && (
+      {loaded && loaded.exampleBannerText && (
         <div
           role="status"
           data-testid={bannerTestId}
@@ -152,42 +156,9 @@ export function App() {
       )}
 
       <main className="mx-auto max-w-[1360px] px-4 pt-5 pb-12 sm:px-6 lg:px-8 lg:pt-7">
-        <div
-          role="tablist"
-          aria-label="TideWise views"
-          className="inline-flex gap-1 rounded-[12px] border border-sand-200 bg-white p-1"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={page === 'planner'}
-            onClick={() => setPage('planner')}
-            className={`rounded-[9px] px-3.5 py-1.5 text-sm font-medium ${
-              page === 'planner'
-                ? 'bg-navy-900 text-white shadow-xs'
-                : 'text-navy-700 hover:bg-sand-100'
-            }`}
-          >
-            Planner
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={page === 'score'}
-            onClick={() => setPage('score')}
-            className={`rounded-[9px] px-3.5 py-1.5 text-sm font-medium ${
-              page === 'score'
-                ? 'bg-navy-900 text-white shadow-xs'
-                : 'text-navy-700 hover:bg-sand-100'
-            }`}
-          >
-            Quick score
-          </button>
-        </div>
+        <ScoreWindowCard />
 
-        {page === 'score' ? (
-          <ScoreWindowCard />
-        ) : loadState === 'loading' || !viewModel || !loaded ? (
+        {loadState === 'loading' || !viewModel || !loaded ? (
           <div
             data-testid="planner-loading"
             className="mt-5 rounded-[16px] border border-sand-200 bg-white px-5 py-10 text-center shadow-[var(--shadow-card)]"
@@ -237,6 +208,25 @@ export function App() {
                 selectedActivity={activity}
                 onSelectActivity={setActivity}
               />
+              {activity === 'crabbing' && (
+                <label className="flex items-center gap-2 rounded-[12px] border border-sand-200 bg-white px-3 py-2 text-[13px] font-medium text-navy-700">
+                  <span>Gear</span>
+                  <select
+                    aria-label="Crabbing gear"
+                    value={crabbingGear}
+                    onChange={(event) =>
+                      setCrabbingGear(event.target.value as CrabbingGear)
+                    }
+                    className="rounded-[8px] border border-sand-200 bg-sand-50 px-2 py-1 text-navy-900 focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:outline-none"
+                  >
+                    {CRABBING_GEAR_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {!(
                 loaded.dataMode === 'live' &&
                 hasLiveWindows(loaded.liveResponse ?? loaded.response)
