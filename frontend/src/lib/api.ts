@@ -75,6 +75,7 @@ export function fetchRecommend(params: {
   lat?: number;
   lon?: number;
   limit?: number;
+  gear?: string;
   signal?: AbortSignal;
   timeoutMs?: number;
 }): Promise<RecommendResponse> {
@@ -85,6 +86,7 @@ export function fetchRecommend(params: {
   if (params.lat !== undefined) qs.set('lat', String(params.lat));
   if (params.lon !== undefined) qs.set('lon', String(params.lon));
   if (params.limit !== undefined) qs.set('limit', String(params.limit));
+  if (params.gear) qs.set('gear', params.gear);
   return requestJson<RecommendResponse>(
     `/recommend?${qs.toString()}`,
     { signal: params.signal },

@@ -141,13 +141,15 @@ export async function loadPlannerData(params: {
   lat?: number;
   lon?: number;
   limit?: number;
+  gear?: string;
+  durationHours?: number;
   signal?: AbortSignal;
 }): Promise<LoadedPlannerData> {
   if (params.forcePreview) {
     return previewPayload(params.scenario);
   }
 
-  const range = pacificRangeIso(new Date(), 24);
+  const range = pacificRangeIso(new Date(), params.durationHours ?? 24);
   const start = params.start ?? range.start;
   const end = params.end ?? range.end;
 
@@ -162,6 +164,7 @@ export async function loadPlannerData(params: {
         lat: params.lat,
         lon: params.lon,
         limit: params.limit,
+        gear: params.gear,
         signal: params.signal,
       }),
       fetchHealth(params.signal),
@@ -186,7 +189,7 @@ export async function loadPlannerData(params: {
       ? new Date(health.checked_at)
       : new Date();
 
-    if (allWindowsEmpty(liveResponse)) {
+    if (allWindowsEmpty(liveResponse) && params.activity === 'clamming') {
       const example = getExampleRecommendResponse(params.scenario);
       return {
         response: example,
