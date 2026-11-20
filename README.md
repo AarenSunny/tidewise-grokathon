@@ -76,7 +76,7 @@ make frontend     # UI  http://localhost:5173
 make test
 ```
 
-API surface (Phase 1 stubs return 501 for query/recommend):
+API surface (`POST /query` is still the intent stub; `GET /recommend` returns live scored windows):
 
 - `POST /query` `{ "text": "..." }`
 - `GET /recommend?activity=&spot=&start=&end=`
@@ -102,7 +102,7 @@ Placeholders — filled in Phase 8.
 
 ## Status
 
-**Phase 1 complete:** architecture confirmed, pydantic models, adapter interface, skeleton, docs. Awaiting `continue` for Phase 2 (probes after `DATA_SOURCES.md`).
+`GET /recommend` returns live scored windows from the adapter fan-out and the activity scorers. The UI shows those live results with a Live data label, and falls back to labeled example data only when the live call fails or returns no windows.
 
 ## Deployment
 
