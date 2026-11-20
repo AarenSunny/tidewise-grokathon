@@ -11,6 +11,12 @@ small_craft:
   # the 21–33 kt band.
   wind_kt_at_or_above: 21
   wave_ft_above: 10
+gusts:
+  # Block gusts above 25 kt. NWS gale is 34 kt (weather.gov/marine/cwd);
+  # 25 kt is the configured small-boat gust cap so a 45 kt gust cannot
+  # pass on a moderate sustained wind (DATA_SOURCES.md B4). Missing gusts
+  # cannot_confirm.
+  max_gust_kt: 25
 ebb_against_swell:
   # DATA_SOURCES.md B3/B4: strong ebb against west swell is hazardous, and
   # ocean seas of 8–12 ft were called unsuitable for small open boats.
@@ -56,6 +62,13 @@ gates:
     unit: ""
     display: ebb
     blocked_reason: "ebb against swell"
+  - name: gust_limit
+    rule: "gusts_clear == true"
+    missing: cannot_confirm
+    sources: [ndbc_buoy]
+    unit: kt
+    factor: low_gust_spread
+    blocked_reason: "gusts above the configured maximum"
 weights:
   wind_ideal_8_18kt:
     # Introductory lessons often target about 5–15 kt. Beginners stay at or

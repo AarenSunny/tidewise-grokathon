@@ -57,7 +57,7 @@ def make_hour(moment: datetime, **overrides) -> HourlyFeatures:
         wave_height_m=0.4,
         sst_c=18.0,
         current_velocity_kt=0.2,
-        active_alerts=[],
+        active_alerts=["cdph_closure=false"],
         source_statuses=all_ok(),
     )
     payload.update(overrides)
@@ -74,7 +74,7 @@ def make_chl(value=2.0, when=None, status=SourceStatus.ok) -> ChlorophyllObserva
     )
 
 
-def make_grid(moment: datetime, spot_id="half_moon_bay", region="outer_coast", **hour_overrides) -> SpotFeatureGrid:
+def make_grid(moment: datetime, spot_id="pillar_point_harbor", region="outer_coast", **hour_overrides) -> SpotFeatureGrid:
     return SpotFeatureGrid(
         spot_id=spot_id,
         hours=[make_hour(moment, **hour_overrides)],

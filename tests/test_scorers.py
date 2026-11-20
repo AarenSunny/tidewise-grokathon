@@ -92,8 +92,9 @@ def test_clamming_gates_fail_on_fresh_bad_values():
     assert _gate(high, "minus_tide").cannot_confirm is False
     assert high.eligible is False
 
-    closed = _score("clamming", make_grid(NOON, active_alerts=["CDPH shellfish biotoxin closure"]))
+    closed = _score("clamming", make_grid(NOON, active_alerts=["cdph_closure=true"]))
     assert _gate(closed, "no_biotoxin_closure").passed is False
+    assert _gate(closed, "no_biotoxin_closure").cannot_confirm is False
     assert any(factor.verdict and factor.verdict.value == "blocked" for factor in closed.factors)
     assert any("CDPH biotoxin quarantine" in (factor.note or "") for factor in closed.factors)
     assert "CDPH biotoxin quarantine" in (closed.summary or "")
@@ -217,8 +218,13 @@ def test_crabbing_gear_season_and_bay():
     )
     assert _gate(closed_window, "season_open").passed is False
 
-    bay = _score("crabbing", make_grid(NOON, spot_id="sf_bay", region="sf_bay"), gear="hoop_net")
+    bay = _score(
+        "crabbing",
+        make_grid(NOON, spot_id="crissy_field", region="outer_coast"),
+        gear="hoop_net",
+    )
     assert _gate(bay, "dungeness_water").passed is False
+    assert _gate(bay, "dungeness_water").cannot_confirm is False
     assert bay.eligible is False
 
     bare = get_scorer("crabbing").config

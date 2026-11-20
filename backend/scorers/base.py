@@ -30,13 +30,16 @@ from backend.scorers.predicates import (
     dungeness_water_decision,
     ebb_decision,
     failed,
+    gust_decision,
     gear_decision,
     hour_value_records,
     numeric_sentinel,
     passed,
     rip_state,
     season_decision,
+    shellfish_closure_state,
     small_craft_decision,
+    surf_decision,
     source_problem,
     unconfirmed,
 )
@@ -195,7 +198,14 @@ class BaseActivityScorer:
             decision = small_craft_decision(ctx)
         elif rule.field == "ebb_against_swell":
             decision = ebb_decision(ctx)
-        elif rule.field in {"shellfish_closure", "bacteria_advisory", "thunderstorm_alert"}:
+        elif rule.field == "surf_clear":
+            decision = surf_decision(ctx)
+        elif rule.field == "gusts_clear":
+            decision = gust_decision(ctx)
+        elif rule.field == "shellfish_closure":
+            state = shellfish_closure_state(ctx)
+            decision = self._state_rule(rule, state, ctx, rule.field)
+        elif rule.field in {"bacteria_advisory", "thunderstorm_alert"}:
             state = alert_state(ctx, rule.field)
             decision = self._state_rule(rule, state, ctx, rule.field)
         elif rule.field == "rip_current_risk":

@@ -43,6 +43,8 @@ COMPUTED_FIELDS = {
     "cold_shock_clear",
     "small_craft_clear",
     "ebb_against_swell",
+    "surf_clear",
+    "gusts_clear",
 }
 _OPS = {"<=", ">=", "==", "!=", "<", ">"}
 _BOOL_WORDS = {"true": True, "false": False}

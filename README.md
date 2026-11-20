@@ -55,7 +55,7 @@ See [`DATA_SOURCES.md`](DATA_SOURCES.md) (research session). Adapters and probes
 
 ```text
 backend/          FastAPI, adapters, features, scorers, bots, orchestrator
-frontend/         Vite + React + Leaflet
+frontend/         Vite + React + TypeScript + Tailwind
 scripts/probes/   Live source probes (Phase 2)
 tests/            pytest (fixtures for unit tests only; live path hits real APIs)
 grok-sessions/    research / build / review exports
@@ -134,4 +134,4 @@ Configured by `render.yaml` (Blueprint) or manually as a Python web service:
 - Output directory: `dist`
 - Environment: `VITE_API_URL=https://tidewise-api.onrender.com`
 
-Vite embeds `VITE_API_URL` at build time, so redeploy the frontend after changing it. The frontend builds API URLs with `apiUrl()` from `frontend/src/api.js`; leave `VITE_API_URL` unset locally to use the Vite dev proxy to `localhost:8000`.
+Vite embeds `VITE_API_URL` at build time, so redeploy the frontend after changing it. The frontend builds API URLs from `API_BASE_URL` in `frontend/src/lib/api.ts` (reads `VITE_API_URL` or `VITE_API_BASE_URL`); leave `VITE_API_URL` unset locally to use the Vite dev proxy to `localhost:8000`.
