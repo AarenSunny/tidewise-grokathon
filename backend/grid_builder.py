@@ -116,7 +116,7 @@ def _cos_interp(points: list[tuple[datetime, float]], t: datetime) -> Optional[f
     """Cosine interpolation between consecutive extrema; None outside the span."""
     if len(points) < 2 or t < points[0][0] or t > points[-1][0]:
         return None
-    for (t0, v0), (t1, v1) in zip(points, points[1:]):
+    for (t0, v0), (t1, v1) in zip(points, points[1:], strict=False):
         if t0 <= t <= t1:
             span = (t1 - t0).total_seconds()
             if span <= 0:
