@@ -543,6 +543,7 @@ def _worst(statuses: list[SourceStatus]) -> SourceStatus:
         SourceStatus.ok: 0,
         SourceStatus.degraded: 1,
         SourceStatus.stale: 2,
-        SourceStatus.down: 3,
+        SourceStatus.unknown: 3,
+        SourceStatus.down: 4,
     }
     return max(statuses, key=lambda status: rank[status])

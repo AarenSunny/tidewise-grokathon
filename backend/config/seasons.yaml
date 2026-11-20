@@ -1,0 +1,77 @@
+# Season / gear status — sourced from DATA_SOURCES.md @ ed08814 (research).
+# Re-check CDFW in-season page before every release. Not legal advice.
+source_commit: ed08814
+source_note: "DATA_SOURCES.md Part B Dungeness gear / zones (2026-11-19)"
+checked_on: "2026-11-19"
+
+mussel_quarantine:
+  # Annual sport mussel quarantine May 1 – Oct 31; lifted end of day 2026-10-31 per CDPH.
+  annual_start_month: 5
+  annual_start_day: 1
+  annual_end_month: 10
+  annual_end_day: 31
+  lifted_end_of_day: "2026-10-31"
+
+dungeness:
+  season_open_date: "2026-11-07"   # first Saturday Nov 2026
+  season_close_date_central: "2027-06-30"
+  # Domoic acid delay north of TideWise core (note only; do not blanket-close SF/HMB)
+  domoic_acid_delay:
+    south_lat: 39.555   # ~39°33.3′ N Ten Mile SMR
+    north_lat: 41.293   # ~41°17.6′ N Reading Rock
+    note: "North of TideWise core — HMB/Pacifica/SF ocean remain open under trap restriction"
+
+  # Zone-based (lat bounds from CDFW In-Season page via DATA_SOURCES.md)
+  zones:
+    - id: zone_3
+      name: "Fishing Zone 3"
+      north_lat: 38.76875   # 38°46.125' N Sonoma/Mendocino line
+      south_lat: 37.18333   # 37°11' N Pigeon Point
+      trap_restricted_until: "2027-01-01"
+    - id: zone_4
+      name: "Fishing Zone 4"
+      north_lat: 37.18333   # Pigeon Point
+      south_lat: 34.45      # Point Conception ~34°27' N
+      trap_restricted_until: "2027-01-01"
+
+  # SF Bay / San Pablo Bay — Dungeness take prohibited (§29.85(b)(1)). Gate FAILS.
+  no_dungeness_areas:
+    - id: sf_san_pablo_bay
+      name: "San Francisco Bay and San Pablo Bay (Golden Gate to Carquinez)"
+      rule: "fail"   # not cannot_confirm
+      # Approximate bbox for spot tagging; spots also set dungeness_prohibited: true
+      min_lat: 37.75
+      max_lat: 38.10
+      min_lon: -122.52
+      max_lon: -122.05
+      ccr: "14 CCR §29.85(b)(1)"
+
+  gear:
+    # Encode ONLY what DATA_SOURCES.md @ ed08814 explicitly confirms.
+    trap:
+      status: restricted
+      restricted_until: "2027-01-01"
+      zones: [zone_1, zone_2, zone_3, zone_4, zone_5]
+      confirmed: true
+      note: "Recreational crab traps restricted Zones 1–5 until at least 2027-01-01 (whale entanglement RAMP)."
+    hoop_net:
+      status: allowed
+      confirmed: true
+      service_interval_hours: 2
+      # Per-person count unreconciled in DATA_SOURCES — do not assert a number
+      count_confirmed: false
+      note: "Allowed during trap restriction; must be serviced every 2 hours. Hoop-net count unconfirmed."
+    snare:
+      status: allowed
+      confirmed: true
+      caveat: true
+      note: "CDFW announcements allow crab snares/loop traps during trap restriction; §29.80(e) groups loop traps with crab traps — flag for human/legal review. Never silent pass."
+    loop_trap:
+      status: allowed
+      confirmed: true
+      caveat: true
+      note: "Same as snare: CDFW announcements allow; statutory wording tension with §29.80(e). Visible caveat required."
+    hand:
+      status: allowed
+      confirmed: true
+      note: "Hand take allowed during trap restriction per CDFW announcements."
