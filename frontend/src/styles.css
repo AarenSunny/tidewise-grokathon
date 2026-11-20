@@ -19,6 +19,109 @@ header h1 { margin-bottom: 0.25rem; }
   min-height: 140px;
 }
 .muted { color: #64748b; }
+.map.panel { min-width: 0; }
+.spots-map {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.map-canvas.leaflet-container {
+  height: 340px;
+  width: 100%;
+  border-radius: 8px;
+  z-index: 0;
+  isolation: isolate;
+  font: inherit;
+}
+.activity-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.activity-filter button,
+.map-message button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: inherit;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  min-height: 2rem;
+  font: inherit;
+  cursor: pointer;
+}
+.activity-filter button[aria-pressed="true"] {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+.map-message {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+}
+.map-message[role="alert"] {
+  background: #fef2f2;
+  color: #991b1b;
+}
+.map-message p { margin: 0 0 0.65rem; }
+.spots-summary { margin: 0; font-size: 0.85rem; }
+.spot-marker.leaflet-div-icon {
+  background: transparent;
+  border: none;
+}
+.spot-pin {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 5px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgb(15 23 42 / 35%), 0 2px 6px rgb(0 0 0 / 35%);
+}
+.spot-popup { min-width: 160px; }
+.spot-name { margin: 0 0 0.35rem; font-weight: 600; }
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+.chip {
+  background: #e0f2fe;
+  color: #0c4a6e;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+}
+.shoreline, .spot-score { margin: 0.2rem 0 0; font-size: 0.85rem; }
+.shore-arrow {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 0.3rem;
+}
+.score-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  color: #475569;
+}
+.score-legend i {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.25rem;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
 @media (max-width: 800px) {
   .layout { grid-template-columns: 1fr; }
+  .app { padding: 0.75rem; }
+  .map-canvas.leaflet-container { height: 280px; }
 }

@@ -76,6 +76,8 @@ make frontend     # UI  http://localhost:5173
 make test
 ```
 
+The Map panel is the Vite app in `frontend/`. `make frontend` proxies `GET /spots` to the API. Copy `frontend/.env.example` to `frontend/.env` and set `VITE_API_BASE` (no trailing slash) only for `npm run preview` or a static host. From `frontend/`, `npm test` covers the activity filter and the API-down state, and `npm run build` writes `frontend/dist`. The map loads spots only from `GET /spots` and does not fill in sample spots when that call is empty or down.
+
 API surface (Phase 1 stubs return 501 for query/recommend):
 
 - `POST /query` `{ "text": "..." }`

@@ -1,7 +1,10 @@
 /**
- * Phase 1 shell: chat box, ranked results, map, health panel placeholders.
- * Wired to the API in Phase 7.
+ * App shell. The map reads GET /spots.
+ * When GET /recommend exists, pass scoresFromRecommendations(...)
+ * as scoresBySpotId on SpotsMap. Do not call /recommend yet.
  */
+import SpotsMap from "./SpotsMap.jsx";
+
 export default function App() {
   return (
     <div className="app">
@@ -20,7 +23,7 @@ export default function App() {
         </section>
         <section className="map panel">
           <h2>Map</h2>
-          <p className="muted">Leaflet spots map (Phase 7)</p>
+          <SpotsMap />
         </section>
         <section className="health panel">
           <h2>Data health</h2>
