@@ -11,6 +11,7 @@ import {
   formatRange,
   minutesToAxisPercent,
 } from '../lib/time';
+import { SourceIssueBadges } from './SourceIssueBadges';
 import { StatusBadge } from './StatusBadge';
 
 interface TimelineChartProps {
@@ -294,6 +295,7 @@ export function TimelineChart({
                         label={spot.closureLabel}
                       />
                     </div>
+                    <SourceIssueBadges issues={spot.sourceIssues} />
                   </button>
 
                   {/* Right timeline track cell */}
@@ -524,6 +526,10 @@ export function TimelineChart({
                     status={spot.closureStatus}
                     label={spot.closureLabel}
                   />
+                  <SourceIssueBadges
+                    issues={spot.sourceIssues}
+                    className="mt-1.5 flex flex-wrap gap-1"
+                  />
                 </div>
 
                 <div className="mt-2.5 flex items-baseline justify-between gap-2">
@@ -724,6 +730,10 @@ export function TimelineChart({
               <StatusBadge
                 status={spot.closureStatus}
                 label={spot.closureLabel}
+              />
+              <SourceIssueBadges
+                issues={spot.sourceIssues}
+                className="inline-flex flex-wrap gap-1"
               />
               <span className="text-navy-500">{spot.notRankedReason}</span>
             </button>

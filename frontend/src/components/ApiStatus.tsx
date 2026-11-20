@@ -1,25 +1,35 @@
 import { useEffect, useState } from 'react';
-import { API_BASE_URL } from '../lib/api';
+import { API_BASE_URL, fetchHealth, fetchSpots } from '../lib/api';
 
 type State =
   | { status: 'checking' }
   | { status: 'ok'; health: string; spots: string[] }
   | { status: 'error'; error: string };
 
-// Production check carried over from main (PR #6): proves the deployed
-// frontend can reach the backend's /health and /spots.
+// Production check carried over from main (PR #6 / PR #8): proves the
+// deployed frontend can reach the backend's /health and /spots.
 export function ApiStatus() {
   const [state, setState] = useState<State>({ status: 'checking' });
 
   useEffect(() => {
-    Promise.all([fetch(`${API_BASE_URL}/health`), fetch(`${API_BASE_URL}/spots`)])
-      .then(async ([h, s]) => {
-        if (!h.ok || !s.ok) throw new Error(`HTTP ${h.status} / ${s.status}`);
-        const health = (await h.json()) as { status: string };
-        const spots = (await s.json()) as { spots: { name: string }[] };
-        setState({ status: 'ok', health: health.status, spots: spots.spots.map((x) => x.name) });
+    const controller = new AbortController();
+    Promise.all([
+      fetchHealth(controller.signal),
+      fetchSpots(controller.signal),
+    ])
+      .then(([health, spots]) => {
+        if (controller.signal.aborted) return;
+        setState({
+          status: 'ok',
+          health: health.status,
+          spots: spots.spots.map((spot) => spot.name),
+        });
       })
-      .catch((err: unknown) => setState({ status: 'error', error: String(err) }));
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setState({ status: 'error', error: String(err) });
+      });
+    return () => controller.abort();
   }, []);
 
   return (

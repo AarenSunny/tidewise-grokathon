@@ -10,6 +10,7 @@ import {
   formatSignedHeight,
   formatTime,
 } from '../lib/time';
+import { SourceStatusBadge } from './SourceStatusBadge';
 import { StatusBadge } from './StatusBadge';
 
 interface SpotDetailContentProps {
@@ -206,12 +207,34 @@ export function SpotDetailContent({
               className={src.isWarning ? 'font-medium text-amber-700' : 'text-navy-700'}
             >
               <span className="font-semibold">{src.label}</span> · {src.detail}
+              {src.badge && src.badgeLabel && src.badge !== 'ok' && (
+                <span className="ml-2 inline-block align-middle">
+                  <SourceStatusBadge badge={src.badge} label={src.badgeLabel} />
+                </span>
+              )}
             </li>
           ))}
         </ul>
-        <div className="mt-3 text-[11px] italic text-navy-500">
-          {exampleBannerText}
-        </div>
+        {spot.sourceIssues.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {spot.sourceIssues
+              .filter((issue, index, all) =>
+                all.findIndex((item) => item.badgeLabel === issue.badgeLabel) === index,
+              )
+              .map((issue) => (
+                <SourceStatusBadge
+                  key={issue.badgeLabel}
+                  badge={issue.badge}
+                  label={issue.badgeLabel}
+                />
+              ))}
+          </div>
+        )}
+        {exampleBannerText ? (
+          <div className="mt-3 text-[11px] italic text-navy-500">
+            {exampleBannerText}
+          </div>
+        ) : null}
       </div>
     </div>
   );

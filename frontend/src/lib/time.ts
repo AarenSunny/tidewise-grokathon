@@ -96,3 +96,57 @@ export function minutesToAxisPercent(
   const pct = ((minutes - axisStartMinutes) / span) * 100;
   return Math.max(0, Math.min(100, pct));
 }
+
+/**
+ * Format an instant as a Pacific-time ISO-8601 string with a numeric
+ * offset (e.g. 2026-11-21T12:00:00-08:00). Never emits Z or a naive stamp;
+ * the backend 422s on timezone-naive start/end query params.
+ */
+export function toPacificOffsetIso(date: Date): string {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+    timeZoneName: 'longOffset',
+  });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date).map((part) => [part.type, part.value]),
+  );
+  const rawOffset = (parts.timeZoneName ?? 'GMT-08:00').replace(/^GMT/i, '');
+  const offset = normalizeNumericOffset(rawOffset);
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${offset}`;
+}
+
+function normalizeNumericOffset(value: string): string {
+  const match = value.trim().match(/^([+-])(\d{1,2})(?::?(\d{2}))?$/);
+  if (!match) return '-08:00';
+  const hours = match[2].padStart(2, '0');
+  const minutes = (match[3] ?? '00').padStart(2, '0');
+  return `${match[1]}${hours}:${minutes}`;
+}
+
+export function pacificRangeIso(
+  from: Date = new Date(),
+  durationHours = 24,
+): { start: string; end: string } {
+  const end = new Date(from.getTime() + durationHours * 60 * 60 * 1000);
+  return {
+    start: toPacificOffsetIso(from),
+    end: toPacificOffsetIso(end),
+  };
+}
+
+/** e.g. "4:02 PM PT", or "—" when the timestamp is missing/invalid. */
+export function formatIsoToPacificTimeWithZone(
+  isoDatetime?: string | null,
+): string {
+  if (!isoDatetime) return '—';
+  const date = new Date(isoDatetime);
+  if (Number.isNaN(date.getTime())) return '—';
+  return `${formatIsoToPacificTime(isoDatetime)} PT`;
+}
