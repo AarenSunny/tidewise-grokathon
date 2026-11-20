@@ -259,9 +259,12 @@ class Orchestrator:
             b.errors or any(r.status.value != "ok" for r in b.results.values()) for b in bundles
         )
         note = (
+            "Live scoring: ranked windows from fetched adapter features and the activity scorers. "
             "Windows are scored from live adapters. best_score is set only for eligible windows; "
             "a gate that cannot be confirmed (missing/stale/unconfirmed data) is not a pass."
         )
+        if not any(rec.windows for rec in recs):
+            note += " No scoreable windows in this range."
         if activity is Activity.crabbing and gear is None:
             note += " Pass gear=hoop_net|snare|loop_trap|hand to confirm the crab gear gate."
         if degraded:

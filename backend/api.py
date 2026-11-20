@@ -106,7 +106,7 @@ async def get_recommend(
     limit: int = Query(6, ge=1, le=15),
     gear: str | None = None,
 ) -> RecommendResponse:
-    """Nearby lat/lon is optional. Scoring stays empty until the scorer track lands."""
+    """Nearby lat/lon is optional. Returns live scored windows for the activity."""
     if start is not None and start.tzinfo is None:
         raise HTTPException(status_code=422, detail="start must be timezone-aware")
     if end is not None and end.tzinfo is None:
