@@ -83,6 +83,7 @@ async def get_recommend(
     lat: float | None = None,
     lon: float | None = None,
     limit: int = Query(6, ge=1, le=15),
+    gear: str | None = None,
 ) -> RecommendResponse:
     """Nearby lat/lon is optional. Scoring stays empty until the scorer track lands."""
     if start is not None and start.tzinfo is None:
@@ -107,6 +108,7 @@ async def get_recommend(
             start=start,
             end=end,
             limit=limit,
+            gear=gear,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Unknown spot: {spot}") from None
