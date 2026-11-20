@@ -39,14 +39,14 @@ export function SpotDetailContent({
     spot.closureStatus === 'open'
       ? 'Open'
       : spot.closureStatus === 'unverified'
-        ? 'Unknown'
+        ? 'Check advisory'
         : 'Closed';
 
   const closureCardColor =
     spot.closureStatus === 'open'
       ? 'text-teal-700'
       : spot.closureStatus === 'unverified'
-        ? 'text-amber-700'
+        ? 'text-sky-700'
         : 'text-red-600';
 
   return (
@@ -114,13 +114,13 @@ export function SpotDetailContent({
         <div
           role="status"
           data-testid="unverified-closure-alert"
-          className="mt-4 rounded-[12px] border-[1.5px] border-dashed border-amber-500 bg-amber-50 p-3.5"
+          className="mt-4 rounded-[12px] border-[1.5px] border-sky-200 bg-sky-50 p-3.5"
         >
-          <div className="flex items-center gap-2 text-[13px] font-semibold text-amber-900">
-            <HelpCircle className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-sky-900">
+            <HelpCircle className="h-4 w-4 shrink-0 text-sky-700" aria-hidden="true" />
             <span>{spot.closureAlertTitle}</span>
           </div>
-          <p className="mt-1.5 text-xs leading-relaxed text-amber-900/90">
+          <p className="mt-1.5 text-xs leading-relaxed text-sky-900/80">
             {spot.closureAlertMessage}
           </p>
         </div>
@@ -204,7 +204,7 @@ export function SpotDetailContent({
           {spot.sources.map((src) => (
             <li
               key={src.label}
-              className={src.isWarning ? 'font-medium text-amber-700' : 'text-navy-700'}
+              className={src.isWarning ? 'font-medium text-sky-700' : 'text-navy-700'}
             >
               <span className="font-semibold">{src.label}</span> · {src.detail}
               {src.badge && src.badgeLabel && src.badge !== 'ok' && (

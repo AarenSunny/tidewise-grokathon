@@ -24,9 +24,9 @@ export function StatusBadge({ status, label, size = 'sm' }: StatusBadgeProps) {
   if (status === 'unverified') {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-full border border-dashed border-amber-500 bg-amber-50 font-medium text-amber-900 ${padding}`}
+        className={`inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 font-medium text-sky-900 ${padding}`}
       >
-        <HelpCircle className="h-3.5 w-3.5 shrink-0 text-amber-700" aria-hidden="true" />
+        <HelpCircle className="h-3.5 w-3.5 shrink-0 text-sky-700" aria-hidden="true" />
         <span>{label}</span>
       </span>
     );
