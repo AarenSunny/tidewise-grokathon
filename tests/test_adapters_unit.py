@@ -58,29 +58,16 @@ async def test_coops_ok_fixture_parses():
 
 
 @pytest.mark.asyncio
-async def test_coops_station_fallback(monkeypatch):
-    cache = MemoryTTLCache()
-    health = HealthMonitor()
-    adapter = CoopsTideAdapter(cache, health=health)
-    calls: list[str] = []
-
-    async def fake_get2(client, station, start, end):
-        calls.append(station)
-        if station == "9414131":
-            raise ConnectionError("timeout")
-        return {
-            "predictions": [{"t": "2026-11-19 12:00", "v": "2.0", "type": "L"}],
-            "_station_id": station,
-            "_fallback_used": f"station:{station}",
-        }
-
-    monkeypatch.setattr(adapter, "_get_predictions", fake_get2)
-    spot = _spot(tide_station_id="9414131")
+async def test_coops_missing_station_does_not_substitute_san_francisco():
+    """A spot with no tide station must be down, not San Francisco's tide."""
+    adapter = CoopsTideAdapter(MemoryTTLCache())
+    spot = _spot(tide_station_id=None)
     start = datetime(2026, 11, 19, tzinfo=timezone.utc)
-    end = start + timedelta(days=1)
-    raw = await adapter._fetch_live(spot, start, end)
-    assert raw["_station_id"] == "9414290"
-    assert calls == ["9414131", "9414290"]
+    result = await adapter.fetch(spot, start, start + timedelta(days=1))
+    assert result.status == SourceStatus.down
+    assert result.data is None
+    assert result.observed_at is None
+    assert "9414290" not in " ".join(result.notes)
 
 
 def test_ndbc_mm_sentinel():

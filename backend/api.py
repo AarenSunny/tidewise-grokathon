@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.adapters.registry import AdapterRegistry
 from backend.cache.memory import MemoryTTLCache
 from backend.config import load_region
+from backend.geo.nearby import validate_user_point
 from backend.health import HealthMonitor
 from backend.models.api import (
     HealthResponse,
@@ -83,10 +84,20 @@ async def get_recommend(
     lon: float | None = None,
     limit: int = Query(6, ge=1, le=15),
 ) -> RecommendResponse:
+    """Nearby lat/lon is optional. Scoring stays empty until the scorer track lands."""
     if start is not None and start.tzinfo is None:
         raise HTTPException(status_code=422, detail="start must be timezone-aware")
     if end is not None and end.tzinfo is None:
         raise HTTPException(status_code=422, detail="end must be timezone-aware")
+    if start is not None and end is not None and end <= start:
+        raise HTTPException(status_code=422, detail="end must be after start")
+    if (lat is None) ^ (lon is None):
+        raise HTTPException(status_code=422, detail="lat and lon must be provided together")
+    if lat is not None and lon is not None:
+        try:
+            validate_user_point(lat, lon)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
     try:
         return await orchestrator.recommend(
             activity,

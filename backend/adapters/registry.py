@@ -13,6 +13,7 @@ from backend.adapters.daylight import DaylightAdapter
 from backend.adapters.epa_uv import EpaUvAdapter
 from backend.adapters.erddap import ErddapChlAdapter, ErddapSstAdapter
 from backend.adapters.ndbc import NdbcAdapter
+from backend.adapters.nws import NwsAlertsAdapter
 from backend.cache.base import CacheBackend
 from backend.cache.memory import MemoryTTLCache
 from backend.health import HealthMonitor
@@ -54,6 +55,7 @@ class AdapterRegistry:
         self._add(CharmAdapter(c, health=h))
         self._add(CdphShellfishAdapter(c, health=h))
         self._add(NdbcAdapter(c, health=h))
+        self._add(NwsAlertsAdapter(c, health=h))
         self._add(EpaUvAdapter(c, health=h))
         self._add(BeachwatchBacteriaAdapter(c, health=h))
         self._add(DaylightAdapter(c, health=h))
