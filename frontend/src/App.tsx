@@ -7,22 +7,27 @@ import { DetailPanel } from './components/DetailPanel';
 import { GuidanceRail } from './components/GuidanceRail';
 import { HeaderBar } from './components/HeaderBar';
 import { LiveSourcesPanel } from './components/LiveSourcesPanel';
+import { LiveWindowsByDay } from './components/LiveWindowsByDay';
 import { PlannerControls } from './components/PlannerControls';
 import { ScoreWindowCard } from './components/ScoreWindowCard';
 import { SchematicMap } from './components/SchematicMap';
 import { TimelineChart } from './components/TimelineChart';
+import {
+  PLANNER_ACTIVITIES,
+  hasLiveWindows,
+  recommendParamsForActivity,
+} from './lib/crabbing';
 import { loadPlannerData, type LoadedPlannerData } from './lib/loadPlannerData';
 import { isTruthyEnvFlag } from './lib/sourceHealth';
 import { toPlannerViewModel } from './lib/toViewModel';
 import {
   DEFAULT_AVAILABILITY_ID,
-  EXAMPLE_ACTIVITIES,
   EXAMPLE_AVAILABILITY_OPTIONS,
   EXAMPLE_DAY,
   EXAMPLE_SPOT_META,
   getPreviewScenario,
 } from './preview/exampleData';
-import type { AvailabilityId, SpotWindowViewModel } from './types';
+import type { Activity, AvailabilityId, SpotWindowViewModel } from './types';
 
 const forcePreview = isTruthyEnvFlag(import.meta.env.VITE_FORCE_PREVIEW);
 
@@ -32,17 +37,26 @@ export function App() {
   );
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [showMobileMap, setShowMobileMap] = useState(false);
+  const [activity, setActivity] = useState<Activity>(
+    forcePreview ? 'clamming' : 'crabbing',
+  );
   const [loaded, setLoaded] = useState<LoadedPlannerData | null>(null);
   const [loadState, setLoadState] = useState<'loading' | 'ready'>('loading');
 
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
+    const recParams = recommendParamsForActivity(activity);
+    setLoadState('loading');
 
     void (async () => {
       try {
         const result = await loadPlannerData({
-          activity: 'clamming',
+          activity: recParams.activity,
+          gear: recParams.gear,
+          start: recParams.start,
+          end: recParams.end,
+          durationHours: recParams.durationHours,
           forcePreview,
           scenario: getPreviewScenario(),
           signal: controller.signal,
@@ -60,7 +74,7 @@ export function App() {
       cancelled = true;
       controller.abort();
     };
-  }, []);
+  }, [activity]);
 
   const selectedAvailability = useMemo(
     () =>
@@ -159,7 +173,7 @@ export function App() {
                 Planner · {viewModel.availability.overlineSuffix}
               </div>
               <h1 className="mt-1.5 font-display text-[28px] leading-[1.15] font-semibold tracking-tight text-navy-900 sm:text-[36px]">
-                Where and when should you go clamming?
+                Where and when should you go {activity}?
               </h1>
             </div>
 
@@ -185,18 +199,57 @@ export function App() {
             {/* Controls row */}
             <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
               <ActivitySelector
-                activities={EXAMPLE_ACTIVITIES}
-                selectedActivity={viewModel.activity}
+                activities={PLANNER_ACTIVITIES}
+                selectedActivity={activity}
+                onSelectActivity={setActivity}
               />
+              {!(
+                activity === 'crabbing' &&
+                loaded.dataMode === 'live' &&
+                (loaded.liveResponse || loaded.response)
+              ) && (
               <PlannerControls
                 day={viewModel.day}
                 availabilityOptions={EXAMPLE_AVAILABILITY_OPTIONS}
                 selectedAvailabilityId={availabilityId}
                 onChangeAvailability={setAvailabilityId}
               />
+              )}
             </div>
 
-            {/* Main 2-column grid on desktop */}
+            {activity === 'crabbing' &&
+            loaded.dataMode === 'live' &&
+            hasLiveWindows(loaded.liveResponse ?? loaded.response) ? (
+              <div className="mt-6">
+                {loaded.backendNote && (
+                  <p
+                    data-testid="backend-note"
+                    className="mb-4 text-[13px] leading-relaxed text-navy-700"
+                  >
+                    {loaded.backendNote}
+                  </p>
+                )}
+                <LiveWindowsByDay
+                  response={loaded.liveResponse ?? loaded.response}
+                  spots={loaded.spots}
+                  activityLabel="Crabbing"
+                />
+                <div className="mt-6">
+                  <LiveSourcesPanel
+                    health={loaded.panelHealth}
+                    sourcesAreLive={loaded.sourcesAreLive}
+                    freshnessAsOf={loaded.freshnessAsOf}
+                  />
+                </div>
+              </div>
+            ) : activity === 'crabbing' && loaded.dataMode === 'fallback' ? (
+              <div className="mt-6 rounded-[16px] border border-sand-200 bg-white px-5 py-8 text-sm text-navy-700 shadow-[var(--shadow-card)]">
+                Live crabbing windows are unavailable. Switch to Clamming to
+                review the example planner, or retry after the backend is
+                reachable.
+              </div>
+            ) : (
+            /* Main 2-column clamming grid on desktop */
             <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
               {/* Left 8 columns: Best pick + shared timeline comparison */}
               <div className="space-y-4 lg:col-span-8">
@@ -275,6 +328,7 @@ export function App() {
                 />
               </div>
             </div>
+            )}
           </>
         )}
 
