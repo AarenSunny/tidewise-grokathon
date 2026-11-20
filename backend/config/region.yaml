@@ -36,3 +36,45 @@ spots:
     buoy_ids: []
     nws_grid: null
     notes: "Placeholder — station IDs from DATA_SOURCES.md in Phase 2"
+
+# Chlorophyll gates read these. Numbers are linear mg m^-3, not log10.
+# Keyed by water region so outer coast and SF Bay do not share a cutoff.
+bloom_regions:
+  outer_coast:
+    # Nezlin et al. 2012, JGR Oceans (doi:10.1029/2011JC007773).
+    # Central and southern California open coast: chl-a above 5 mg m^-3
+    # is the remote-sensing bloom / frontal marker (DATA_SOURCES.md §5a-ii).
+    bloom_above_mg_m3: 5.0
+  sf_bay:
+    # Sutula et al. 2017, Estuaries and Coasts (PMC6134865).
+    # Inside San Francisco Bay the protective chlorophyll level is about
+    # 13 mg m^-3. The at-risk band for HAB-alert / low-DO probability is
+    # 25–40 mg m^-3 (DATA_SOURCES.md §5a-ii).
+    protective_max_mg_m3: 13.0
+    at_risk_low_mg_m3: 25.0
+    at_risk_high_mg_m3: 40.0
+
+# Spot id → bloom_regions key. Spots missing from this map are unknown.
+spot_regions:
+  half_moon_bay: outer_coast
+  pacifica: outer_coast
+  sf_bay: sf_bay
+
+# 14 CCR §29.85(b)(1): no Dungeness take in SF Bay or San Pablo Bay,
+# including tidal bays, sloughs, and estuaries between the Golden Gate
+# and the Carquinez Bridge. Region ids here are ineligible for Dungeness.
+dungeness_prohibited_regions:
+  - sf_bay
+
+# CDFW Fishing Zone 3 latitude span (DATA_SOURCES.md, In-Season boundaries).
+# 38°46.125′ N = 38.76875. Pigeon Point 37°11′ N = 37.1833...
+crab_zones:
+  - id: zone_3
+    lat_min: 37.1833333333
+    lat_max: 38.76875
+    trap_restriction: true
+
+# rank_value = score_weight * (score/100) + distance_weight * (1 / (1 + miles))
+ranking:
+  score_weight: 0.65
+  distance_weight: 0.35

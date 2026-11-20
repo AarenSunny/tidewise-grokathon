@@ -1,16 +1,103 @@
+# Sailing gates and weights. SCA numbers are the NWS Western Region criteria.
+# Beginner wind band is SF Bay practice from DATA_SOURCES.md B4, not a statute.
 activity: sailing
 required_sources:
   - nws_alerts
-  - nws_forecast
   - ndbc_buoy
+daylight_margin_minutes: 30
+small_craft:
+  # https://www.weather.gov/marine/cwd — sustained 21–33 kt and/or seas
+  # exceeding 10 ft. Exactly 10 ft does not exceed 10. Exactly 21 kt is inside
+  # the 21–33 kt band.
+  wind_kt_at_or_above: 21
+  wave_ft_above: 10
+ebb_against_swell:
+  # DATA_SOURCES.md B3/B4: strong ebb against west swell is hazardous, and
+  # ocean seas of 8–12 ft were called unsuitable for small open boats.
+  # 8 ft is the low end of that example, not a statute. Ebb is
+  # current_velocity_kt at or below the value here (ebb is negative).
+  ebb_velocity_kt_at_or_below: -1.5
+  wave_height_ft_above: 8
+alert_patterns:
+  small_craft_advisory:
+    - small craft
+    - hazardous seas
+    - gale warning
+    - storm warning
+  thunderstorm_alert:
+    - thunderstorm
+    - special marine warning
+    - waterspout
+    - lightning
+window_phrase: daylight
+verdict_bands:
+  good_at_or_above: 0.75
+  fair_at_or_above: 0.45
 gates:
   - name: no_small_craft_advisory
-    rule: small_craft_advisory != true
+    rule: "small_craft_clear == true"
     missing: cannot_confirm
+    sources: [nws_alerts, ndbc_buoy]
+    unit: ""
+    advisory: true
+    factor: wind_ideal_8_18kt
+    blocked_reason: "small craft advisory"
   - name: no_thunderstorm
-    rule: thunderstorm_alert != true
+    rule: "thunderstorm_alert not active"
     missing: cannot_confirm
+    sources: [nws_alerts]
+    unit: ""
+    advisory: true
+    blocked_reason: "thunderstorm alert"
+  - name: no_ebb_against_swell
+    rule: "ebb_against_swell != true"
+    missing: cannot_confirm
+    sources: [ndbc_buoy]
+    unit: ""
+    display: ebb
+    blocked_reason: "ebb against swell"
 weights:
-  wind_ideal_8_18kt: 0.5
-  low_gust_spread: 0.3
-  waves: 0.2
+  wind_ideal_8_18kt:
+    # Introductory lessons often target about 5–15 kt. Beginners stay at or
+    # below about 15–18 kt (DATA_SOURCES.md B4).
+    weight: 0.5
+    field: wind_speed_kt
+    aggregate: max
+    curve: piecewise
+    anchors: [0, 5, 8, 15, 18, 21, 33]
+    scores: [0.0, 0.5, 1.0, 1.0, 0.65, 0.1, 0.0]
+    summary_name: wind
+    unit: kt
+    summary_unit: kt
+    source: ndbc_buoy
+  low_gust_spread:
+    weight: 0.3
+    field: gust_spread_kt
+    aggregate: max
+    curve: piecewise
+    # No NWS gust-spread cutoff is cited. These anchors only rank steadier wind.
+    anchors: [0, 5, 10, 20]
+    scores: [1.0, 1.0, 0.5, 0.0]
+    summary_name: gusts
+    unit: kt
+    summary_unit: kt
+    source: ndbc_buoy
+  waves:
+    weight: 0.2
+    field: wave_height_m
+    aggregate: max
+    curve: piecewise_ft
+    anchors_ft: [0, 2, 4, 6, 10, 14]
+    scores: [1.0, 1.0, 0.75, 0.45, 0.15, 0.0]
+    summary_name: waves
+    unit: m
+    summary_unit: m
+    source: ndbc_buoy
+confidence_penalties:
+  missing: 0.25
+  stale: 0.20
+  down: 0.35
+  degraded: 0.15
+  sentinel: 0.25
+  unknown: 0.25
+min_confidence_to_recommend: 0.60
