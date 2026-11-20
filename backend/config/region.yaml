@@ -225,8 +225,9 @@ bloom_regions:
     at_risk_low_mg_m3: 25.0
     at_risk_high_mg_m3: 40.0
 
-# Spot id → bloom_regions key. Spots missing from this map are unknown
-# (Tomales Bay is neither open coast nor San Francisco Bay).
+# Spot id → bloom_regions key. Spots missing from this map are unknown.
+# sf_bay is only the SF Bay / San Pablo Bay spots flagged dungeness_prohibited.
+# Tomales and Bodega stay on the outer-coast line; they are not Sutula's SF Bay.
 spot_regions:
   pillar_point_harbor: outer_coast
   half_moon_bay_state_beach: outer_coast
@@ -236,6 +237,7 @@ spot_regions:
   ocean_beach_sf: outer_coast
   baker_beach: outer_coast
   drakes_beach: outer_coast
+  tomales_inverness: outer_coast
   bodega_harbor: outer_coast
   crissy_field: sf_bay
   aquatic_park: sf_bay
@@ -243,14 +245,11 @@ spot_regions:
   berkeley_marina: sf_bay
   richardson_sausalito: sf_bay
 
-# 14 CCR §29.85(b)(1): no Dungeness take in SF Bay or San Pablo Bay,
-# including tidal bays, sloughs, and estuaries between the Golden Gate
-# and the Carquinez Bridge. Region ids here are ineligible for Dungeness.
+# 14 CCR §29.85(b)(1): no Dungeness take in SF Bay or San Pablo Bay.
 dungeness_prohibited_regions:
   - sf_bay
 
-# CDFW Fishing Zone 3 latitude span (DATA_SOURCES.md, In-Season boundaries).
-# 38°46.125′ N = 38.76875. Pigeon Point 37°11′ N = 37.1833...
+# CDFW Fishing Zone 3 (DATA_SOURCES.md): 38°46.125′ N to Pigeon Point 37°11′ N.
 crab_zones:
   - id: zone_3
     lat_min: 37.1833333333

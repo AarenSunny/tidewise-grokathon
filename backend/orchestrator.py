@@ -17,7 +17,7 @@ from typing import Optional
 from backend.adapters.registry import AdapterRegistry
 from backend.config import load_region
 from backend.features.assemble import score_fetched
-from backend.geo.nearby import nearest_spots
+from backend.geo.nearby import select_spots as geo_select_spots
 from backend.health import HealthMonitor
 from backend.models.api import QueryResponse, RecommendResponse
 from backend.models.common import Activity
@@ -40,7 +40,7 @@ DEFAULT_SOURCES = (
     "cdph_shellfish",
     "beachwatch_bacteria",
     "epa_uv",
-    "nws_forecast",  # A may add
+    "nws_alerts",
     "daylight_sunrise_api",
 )
 
@@ -82,24 +82,17 @@ class Orchestrator:
         lat: Optional[float] = None,
         lon: Optional[float] = None,
         limit: int = 6,
-    ) -> tuple[list[Spot], dict[str, float]]:
-        """Resolve spots (uses geo.nearby when lat/lon given)."""
-        distances: dict[str, float] = {}
-        if spot_id:
-            match = next((s for s in self.region.spots if s.id == spot_id), None)
-            if match is None:
-                raise KeyError(spot_id)
-            if activity not in match.activities:
-                raise ValueError(f"spot {spot_id} does not support {activity.value}")
-            return [match], distances
-        if lat is not None and lon is not None:
-            ranked = nearest_spots(
-                self.region.spots, lat=lat, lon=lon, activity=activity, limit=limit
-            )
-            distances = {s.id: round(d, 2) for s, d in ranked}
-            return [s for s, _ in ranked], distances
-        selected = [s for s in self.region.spots if activity in s.activities][:limit]
-        return selected, distances
+    ) -> tuple[list[Spot], dict[str, float], list[str]]:
+        """Resolve spots via geo.nearby (activity, no-take, distance)."""
+        return geo_select_spots(
+            list(self.region.spots),
+            activity,
+            spot_id=spot_id,
+            lat=lat,
+            lon=lon,
+            limit=limit,
+            bbox=self.region.bbox,
+        )
 
     async def fetch_spot_sources(
         self,
@@ -188,7 +181,7 @@ class Orchestrator:
         if start.tzinfo is None or end.tzinfo is None:
             raise ValueError("start/end must be timezone-aware UTC")
 
-        spots, distances = self.select_spots(
+        spots, distances, selection_notes = self.select_spots(
             activity, spot_id=spot_id, lat=lat, lon=lon, limit=limit
         )
 
@@ -213,6 +206,8 @@ class Orchestrator:
         )
         if degraded:
             note += " One or more sources degraded/down — see health."
+        if selection_notes:
+            note += " " + " ".join(selection_notes)
 
         return RecommendResponse(
             activity=activity,

@@ -96,8 +96,8 @@ def assemble_features(
     for name, result in results.items():
         if "nws" not in name:
             continue
-        alerts.extend(_string_list(result.data))
-        status = _effective_status(result)
+        alerts.extend(_nws_alerts(result.data))
+        status = _nws_status(result)
         statuses["nws_alerts"] = _worse(statuses.get("nws_alerts"), status)
         statuses["nws_marine"] = _worse(statuses.get("nws_marine"), status)
 
@@ -238,9 +238,44 @@ def _beach_alerts(payload: Any) -> list[str]:
     return alerts
 
 
+def _nws_alerts(payload: Any) -> list[str]:
+    found = _string_list(payload)
+    for alert in _get(payload, "alerts") or []:
+        if isinstance(alert, str):
+            if alert.strip():
+                found.append(alert)
+            continue
+        if _get(alert, "intersects_window") is False:
+            continue
+        event = _get(alert, "event")
+        headline = _get(alert, "headline")
+        if isinstance(event, str) and event.strip():
+            found.append(event)
+        if isinstance(headline, str) and headline.strip():
+            found.append(headline)
+    if _get(payload, "small_craft_advisory") is True or _get(payload, "gale_warning") is True:
+        found.append("small craft advisory")
+    if _get(payload, "gale_warning") is True:
+        found.append("gale warning")
+    if _get(payload, "beach_hazard") is True:
+        found.append("beach hazards")
+    if _get(payload, "thunderstorm") is True:
+        found.append("thunderstorm")
+    return found
+
+
+def _nws_status(result: SourceResult) -> SourceStatus:
+    status = _effective_status(result)
+    flag_names = ("small_craft_advisory", "gale_warning", "beach_hazard", "thunderstorm")
+    present = [name for name in flag_names if _has(result.data, name)]
+    if status == SourceStatus.ok and present and any(_get(result.data, name) is None for name in present):
+        return SourceStatus.unknown
+    return status
+
+
 def _string_list(payload: Any) -> list[str]:
     found: list[str] = []
-    for key in ("alerts", "alert_texts", "events"):
+    for key in ("alert_texts", "events", "active_event_names"):
         raw = _get(payload, key)
         if isinstance(raw, list):
             found.extend(str(item) for item in raw if isinstance(item, str) and item.strip())

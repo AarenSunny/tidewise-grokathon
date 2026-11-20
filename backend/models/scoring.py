@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, computed_field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 from backend.models.common import Confidence, GateResult, require_aware
 
@@ -44,12 +44,12 @@ class FactorBreakdown(BaseModel):
 
 
 class ScoredWindow(BaseModel):
-    """Ranked time window. eligible defaults to False (deny-by-default, review1-#1).
+    """Ranked time window. eligible defaults to False (deny-by-default).
 
     Callers may set eligible explicitly after evaluating gates, or leave it False.
     When gates are present, prefer deriving eligibility: every gate passed and none
-    cannot_confirm. We keep an explicit field (default False) so incomplete
-    construction cannot accidentally recommend.
+    cannot_confirm. The explicit field defaults to False so incomplete construction
+    cannot accidentally recommend.
     """
 
     spot_id: str
@@ -59,7 +59,7 @@ class ScoredWindow(BaseModel):
     confidence: Confidence
     gates: list[GateResult] = Field(default_factory=list)
     factors: list[FactorBreakdown] = Field(default_factory=list)
-    # Default-deny: missing gates must never yield an eligible window (review1-#1).
+    # Default-deny: missing gates must never yield an eligible window.
     eligible: bool = False
     summary: Optional[str] = None
     # Short label for a ranked window, e.g. "Best clamming: Sat 6:10-8:30 AM, minus tide".
@@ -69,6 +69,19 @@ class ScoredWindow(BaseModel):
     @classmethod
     def _aware(cls, v: datetime) -> datetime:
         return require_aware(v)
+
+    @model_validator(mode="after")
+    def _eligible_requires_every_gate_passed(self) -> "ScoredWindow":
+        """review1-#1: eligible=True is only constructible when gates is non-empty and
+        every gate passed with cannot_confirm False. Missing/failed gates never recommend."""
+        if self.eligible and not (
+            self.gates and all(g.passed and not g.cannot_confirm for g in self.gates)
+        ):
+            raise ValueError(
+                "eligible=True requires a non-empty gates list with every gate passed "
+                "and none cannot_confirm"
+            )
+        return self
 
     @computed_field  # type: ignore[prop-decorator]
     @property

@@ -1,3 +1,5 @@
+import ApiStatus from "./ApiStatus.jsx";
+
 /**
  * Phase 1 shell: chat box, ranked results, map, health panel placeholders.
  * Wired to the API in Phase 7.
@@ -25,6 +27,7 @@ export default function App() {
         <section className="health panel">
           <h2>Data health</h2>
           <p className="muted">GET /health (Phase 3+)</p>
+          <ApiStatus />
         </section>
       </main>
     </div>

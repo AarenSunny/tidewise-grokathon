@@ -8,6 +8,9 @@ description = "TideWise — water recreation recommendations from live Earth-obs
 asyncio_mode = "auto"
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "live: optional live NOAA/NWS smoke; set TIDEWISE_LIVE=1",
+]
 
 [tool.ruff]
 target-version = "py311"
@@ -41,3 +44,5 @@ extend-immutable-calls = ["fastapi.Query", "fastapi.Depends"]
 # frozen shared interfaces / agent-owned tests: no cosmetic churn
 "backend/models/*" = ["F401", "I001"]
 "tests/test_seasons_gear.py" = ["I001", "B007"]
+"tests/test_scorers.py" = ["F401", "B033"]
+"tests/test_windows_solar_beaches.py" = ["I001", "F401", "F841"]
