@@ -61,6 +61,13 @@ export interface GateView {
   reason: string;
 }
 
+/** Optional context gate. A real fail still shows; a down feed does not. */
+const OPTIONAL_CONTEXT_GATES = new Set(['no_bloom']);
+
+export function isHiddenOptionalGate(gate: GateResult): boolean {
+  return OPTIONAL_CONTEXT_GATES.has(gate.name) && gate.cannot_confirm === true;
+}
+
 /** cannot_confirm (or passed=false with cannot_confirm) is never treated as safe. */
 export function toGateView(gate: GateResult): GateView {
   if (gate.cannot_confirm || (gate.passed === false && gate.cannot_confirm)) {
@@ -156,7 +163,9 @@ export function groupWindowsByDay(
       const start = new Date(window.start);
       const end = new Date(window.end);
       if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
-      const gates = (window.gates ?? []).map(toGateView);
+      const gates = (window.gates ?? [])
+        .filter((gate) => !isHiddenOptionalGate(gate))
+        .map(toGateView);
       rows.push({
         id: `${rec.spot_id}-${window.start}-${index}`,
         spotId: rec.spot_id,

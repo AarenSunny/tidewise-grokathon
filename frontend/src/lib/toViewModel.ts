@@ -22,6 +22,7 @@ import {
   collectSourceIssues,
   effectiveSourceStatus,
   findAdapter,
+  isHiddenOptionalSource,
   safetySourcesUnreliable,
   showsStaleBadge,
 } from './sourceHealth';
@@ -163,9 +164,13 @@ function deriveSources(
   const closureBadge = closureEffective
     ? badgeFields(closureEffective)
     : { badge: undefined, badgeLabel: undefined };
-  const daylightBadge = daylightStatus
-    ? badgeFields(daylightStatus)
-    : { badge: undefined, badgeLabel: undefined };
+  const daylightHidden = Boolean(
+    daylightHealth && isHiddenOptionalSource(daylightHealth, asOf),
+  );
+  const daylightBadge =
+    daylightStatus && !daylightHidden
+      ? badgeFields(daylightStatus)
+      : { badge: undefined, badgeLabel: undefined };
 
   return [
     {
@@ -185,7 +190,9 @@ function deriveSources(
     {
       label: 'Daylight',
       detail: `Sunrise/sunset table (sunset ${daySunsetTime}) — updated ${daylightUpdated}`,
-      isWarning: Boolean(daylightStatus && showsStaleBadge(daylightStatus)),
+      isWarning: Boolean(
+        daylightStatus && showsStaleBadge(daylightStatus) && !daylightHidden,
+      ),
       badge: daylightBadge.badge,
       badgeLabel: daylightBadge.badgeLabel,
     },

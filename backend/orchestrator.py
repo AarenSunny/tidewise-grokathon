@@ -23,6 +23,7 @@ from backend.models.common import Activity, GateResult
 from backend.models.scoring import ScoredWindow, SpotRecommendation
 from backend.models.sources import SourceResult
 from backend.models.spots import RegionConfig, Spot
+from backend.optional_feeds import HIDDEN_NOTE, OPTIONAL_CONTEXT_GATES, is_optional_context_source
 from backend.redact import redact
 from backend.source_aliases import FETCH_SOURCES
 
@@ -255,9 +256,8 @@ class Orchestrator:
                     distance_km=distances.get(b.spot.id),
                 )
             )
-        degraded = any(
-            b.errors or any(r.status.value != "ok" for r in b.results.values()) for b in bundles
-        )
+        degraded = _required_sources_degraded(bundles)
+        hidden_optional = self.health.optional_context_hidden()
         note = (
             "Windows are scored from live adapters. best_score is set only for eligible windows; "
             "a gate that cannot be confirmed (missing/stale/unconfirmed data) is not a pass."
@@ -266,6 +266,8 @@ class Orchestrator:
             note += " Pass gear=hoop_net|snare|loop_trap|hand to confirm the crab gear gate."
         if degraded:
             note += " One or more sources degraded/down; see health."
+        if hidden_optional:
+            note += " " + HIDDEN_NOTE + "."
         if selection_notes:
             note += " " + " ".join(selection_notes)
         return RecommendResponse(
@@ -274,7 +276,7 @@ class Orchestrator:
             start=start,
             end=end,
             recommendations=recs,
-            health=self.health.snapshot(),
+            health=_user_facing_health(self.health.snapshot()),
             distances_km=distances,
             note=note,
             scorer=scorer,
@@ -320,6 +322,35 @@ class Orchestrator:
         )
 
 
+def _required_sources_degraded(bundles: list[SpotFetchBundle]) -> bool:
+    """Optional context feeds that are down do not mark the whole answer degraded."""
+    for bundle in bundles:
+        if any(not is_optional_context_source(name) for name in bundle.errors):
+            return True
+        for name, result in bundle.results.items():
+            if is_optional_context_source(name):
+                continue
+            if result.status.value != "ok":
+                return True
+    return False
+
+
+def _user_facing_health(adapters: list) -> list:
+    """Drop optional context feeds that are not ok. Full detail stays on GET /health."""
+    return [
+        adapter
+        for adapter in adapters
+        if not (
+            is_optional_context_source(adapter.source_name) and adapter.status.value != "ok"
+        )
+    ]
+
+
+def _visible_gate(gate: GateResult) -> bool:
+    """Hide an optional context gate that cannot be confirmed. A real fail stays."""
+    return not (gate.name in OPTIONAL_CONTEXT_GATES and gate.cannot_confirm)
+
+
 def explain(rec: RecommendResponse) -> str:
     """Deterministic answer built only from scorer output (no invented numbers)."""
     lines: list[str] = []
@@ -328,11 +359,12 @@ def explain(rec: RecommendResponse) -> str:
         if top is None:
             lines.append(f"{r.spot_name}: no candidate window in range (cannot confirm).")
             continue
-        if top.eligible:
+        visible = [g for g in top.gates if _visible_gate(g)]
+        pending = [g.name for g in visible if g.cannot_confirm]
+        blocked = [g.name for g in visible if not g.passed and not g.cannot_confirm]
+        if top.eligible or (not pending and not blocked):
             lines.append(f"{r.spot_name}: {top.label or ''} {top.summary or ''}".strip())
             continue
-        pending = [g.name for g in top.gates if g.cannot_confirm]
-        blocked = [g.name for g in top.gates if not g.passed and not g.cannot_confirm]
         why = []
         if blocked:
             why.append("blocked: " + ", ".join(blocked))

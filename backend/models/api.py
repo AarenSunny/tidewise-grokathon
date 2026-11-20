@@ -59,6 +59,8 @@ class HealthResponse(BaseModel):
     status: str  # ok | degraded | down | unknown
     adapters: list[AdapterHealth] = Field(default_factory=list)
     checked_at: datetime
+    # Set when optional context feeds are down or stale. Full rows stay in adapters.
+    note: Optional[str] = None
 
 
 class SpotsResponse(BaseModel):

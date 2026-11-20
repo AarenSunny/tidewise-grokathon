@@ -19,6 +19,11 @@ from backend.features.timeutil import NaiveDateTimeError, to_la, to_utc
 from backend.features.units import fahrenheit_to_celsius, meters_to_feet
 from backend.models.common import Confidence, GateResult
 from backend.models.features import HourlyFeatures, SpotFeatureGrid
+from backend.optional_feeds import (
+    OPTIONAL_CONTEXT_GATES,
+    OPTIONAL_CONTEXT_SCORER_KEYS,
+    OPTIONAL_CONTEXT_SOURCES,
+)
 from backend.models.scoring import FactorBreakdown, FactorVerdict, ScoredWindow
 from backend.scorers.predicates import (
     Decision,
@@ -420,6 +425,8 @@ class BaseActivityScorer:
     def _one_line(self, factors: list[FactorBreakdown], gates: list[GateResult]) -> str:
         parts: list[str] = []
         for factor in factors:
+            if _optional_context_unconfirmed(factor):
+                continue
             parts.append(_phrase(factor))
         advisory_names = {
             gate["name"]
@@ -658,6 +665,19 @@ def meters_to_feet_anchor(feet: float) -> float:
     """Piecewise wave curves compare meters converted to feet."""
 
     return feet
+
+
+def _optional_context_unconfirmed(factor: FactorBreakdown) -> bool:
+    """Leave a down or stale context feed out of the one-line explanation.
+
+    A measured block (verdict blocked) stays. Nothing is filled in.
+    """
+    if factor.verdict != FactorVerdict.cannot_confirm:
+        return False
+    if factor.name in OPTIONAL_CONTEXT_GATES:
+        return True
+    source = factor.source or ""
+    return source in OPTIONAL_CONTEXT_SCORER_KEYS or source in OPTIONAL_CONTEXT_SOURCES
 
 
 def _phrase(factor: FactorBreakdown) -> str:

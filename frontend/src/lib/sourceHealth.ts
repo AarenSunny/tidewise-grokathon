@@ -43,6 +43,32 @@ export const SAFETY_SOURCE_NAMES = new Set([
   'cdph_shellfish',
 ]);
 
+/**
+ * Context feeds. When they are not ok they stay on /health and drop out of
+ * the planner. Closures, bacteria, NWS, CO-OPS, and NDBC stay visible.
+ */
+export const OPTIONAL_CONTEXT_SOURCES = new Set([
+  'erddap_chl',
+  'erddap_charm',
+  'epa_uv',
+  'daylight_sunrise_api',
+  'coops_tides_interval',
+]);
+
+export const OPTIONAL_HIDDEN_NOTE = 'some optional data sources hidden';
+
+export function isOptionalContextSource(sourceName: string): boolean {
+  return OPTIONAL_CONTEXT_SOURCES.has(canonicalSourceName(sourceName));
+}
+
+export function isHiddenOptionalSource(
+  health: AdapterHealth,
+  asOf: Date,
+): boolean {
+  if (!isOptionalContextSource(health.source_name)) return false;
+  return effectiveSourceStatus(health, asOf) !== 'ok';
+}
+
 export function isTruthyEnvFlag(value: string | undefined): boolean {
   if (!value) return false;
   return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
@@ -141,7 +167,7 @@ export function buildSourceBadges(
   health: AdapterHealth[],
   asOf: Date,
 ): SourceFreshnessBadge[] {
-  return health.map((adapter) => {
+  return health.filter((adapter) => !isHiddenOptionalSource(adapter, asOf)).map((adapter) => {
     const effectiveStatus = effectiveSourceStatus(adapter, asOf);
     const { badge, badgeLabel } = badgeForStatus(effectiveStatus);
     const lastSuccessLabel = adapter.last_success_at
@@ -171,6 +197,7 @@ export function collectSourceIssues(
 ): SpotSourceIssue[] {
   const issues: SpotSourceIssue[] = [];
   for (const adapter of health) {
+    if (isHiddenOptionalSource(adapter, asOf)) continue;
     const effective = effectiveSourceStatus(adapter, asOf);
     if (!showsStaleBadge(effective)) continue;
     const { badge, badgeLabel } = badgeForStatus(effective);

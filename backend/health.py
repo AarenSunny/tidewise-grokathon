@@ -7,6 +7,7 @@ from typing import Optional
 
 from backend.models.common import SourceStatus
 from backend.models.sources import AdapterHealth
+from backend.optional_feeds import is_optional_context_source
 from backend.redact import redact
 
 
@@ -66,14 +67,25 @@ class HealthMonitor:
     def snapshot(self) -> list[AdapterHealth]:
         return list(self._health.values())
 
+    def _status_sources(self) -> list[AdapterHealth]:
+        """Optional context feeds do not move the rolled-up status."""
+        return [h for h in self._health.values() if not is_optional_context_source(h.source_name)]
+
+    def optional_context_hidden(self) -> bool:
+        return any(
+            is_optional_context_source(h.source_name) and h.status != SourceStatus.ok
+            for h in self._health.values()
+        )
+
     def overall_status(self) -> str:
-        if not self._health:
+        relevant = self._status_sources()
+        if not relevant:
             return "unknown"
-        statuses = {h.status for h in self._health.values()}
+        statuses = {h.status for h in relevant}
         if SourceStatus.unknown in statuses and len(statuses) == 1:
             return "unknown"
         if statuses <= {SourceStatus.ok}:
             return "ok"
-        if statuses and all(h.status == SourceStatus.down for h in self._health.values()):
+        if all(h.status == SourceStatus.down for h in relevant):
             return "down"
         return "degraded"

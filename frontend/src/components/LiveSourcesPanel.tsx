@@ -1,5 +1,9 @@
 import type { AdapterHealth } from '../types';
-import { buildSourceBadges } from '../lib/sourceHealth';
+import {
+  buildSourceBadges,
+  isHiddenOptionalSource,
+  OPTIONAL_HIDDEN_NOTE,
+} from '../lib/sourceHealth';
 import { formatIsoToPacificTimeWithZone } from '../lib/time';
 import { SourceStatusBadge } from './SourceStatusBadge';
 
@@ -15,6 +19,9 @@ export function LiveSourcesPanel({
   freshnessAsOf,
 }: LiveSourcesPanelProps) {
   const badges = buildSourceBadges(health, freshnessAsOf);
+  const optionalHidden = health.some((adapter) =>
+    isHiddenOptionalSource(adapter, freshnessAsOf),
+  );
   const title = sourcesAreLive ? 'Live data sources' : 'Data sources (example data)';
 
   return (
@@ -57,6 +64,9 @@ export function LiveSourcesPanel({
             </li>
           ))}
         </ul>
+      )}
+      {optionalHidden && (
+        <p className="mt-3 text-[12px] text-navy-500">{OPTIONAL_HIDDEN_NOTE}</p>
       )}
     </section>
   );

@@ -21,6 +21,7 @@ from backend.models.api import (
     SpotsResponse,
 )
 from backend.models.common import Activity
+from backend.optional_feeds import HIDDEN_NOTE
 from backend.orchestrator import Orchestrator
 from backend.redact import redact
 from backend.scorers.window import collect_signals, resolve_spot, score_window
@@ -63,6 +64,7 @@ async def get_health() -> HealthResponse:
         status=health_monitor.overall_status(),
         adapters=snap,
         checked_at=datetime.now(timezone.utc),
+        note=HIDDEN_NOTE if health_monitor.optional_context_hidden() else None,
     )
 
 
