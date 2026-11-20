@@ -125,6 +125,16 @@ export interface SpotsResponse {
   spots: Spot[];
 }
 
+export interface ScoreWindowResponse {
+  activity: Activity;
+  location: string;
+  spot_id: string;
+  start: string;
+  end: string;
+  score: number;
+  reason: string;
+}
+
 export interface Preferences {
   max_travel_km?: number | null;
   prefer_morning?: boolean | null;

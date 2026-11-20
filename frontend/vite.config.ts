@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/query': 'http://localhost:8000',
       '/recommend': 'http://localhost:8000',
+      '/score': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
       '/spots': 'http://localhost:8000',
       '/debug': 'http://localhost:8000',

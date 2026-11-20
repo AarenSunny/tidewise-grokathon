@@ -3,13 +3,15 @@ import type {
   HealthResponse,
   QueryResponse,
   RecommendResponse,
+  ScoreWindowResponse,
   SpotsResponse,
 } from '../types';
 
 /**
  * Prefer VITE_API_BASE_URL, then VITE_API_URL (Render/Vercel helper).
  * Default to '' (same-origin) so Vite's dev proxy forwards
- * /recommend, /health, /spots, /query to http://localhost:8000.
+ * /recommend, /score, /health, /spots, /query to http://localhost:8000.
+ * Set VITE_API_URL (used by the Vercel deploy) or VITE_API_BASE_URL to point at a deployed backend.
  */
 const rawBase =
   import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
@@ -88,6 +90,20 @@ export function fetchRecommend(params: {
     { signal: params.signal },
     params.timeoutMs ?? REQUEST_TIMEOUT_MS,
   );
+}
+
+export function fetchScore(params: {
+  activity: Activity;
+  location?: string;
+  spot?: string;
+  signal?: AbortSignal;
+}): Promise<ScoreWindowResponse> {
+  const qs = new URLSearchParams({ activity: params.activity });
+  if (params.location) qs.set('location', params.location);
+  if (params.spot) qs.set('spot', params.spot);
+  return requestJson<ScoreWindowResponse>(`/score?${qs.toString()}`, {
+    signal: params.signal,
+  });
 }
 
 export function fetchHealth(

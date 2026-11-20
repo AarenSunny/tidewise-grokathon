@@ -8,6 +8,7 @@ import { GuidanceRail } from './components/GuidanceRail';
 import { HeaderBar } from './components/HeaderBar';
 import { LiveSourcesPanel } from './components/LiveSourcesPanel';
 import { PlannerControls } from './components/PlannerControls';
+import { ScoreWindowCard } from './components/ScoreWindowCard';
 import { SchematicMap } from './components/SchematicMap';
 import { TimelineChart } from './components/TimelineChart';
 import { loadPlannerData, type LoadedPlannerData } from './lib/loadPlannerData';
@@ -136,10 +137,12 @@ export function App() {
       )}
 
       <main className="mx-auto max-w-[1360px] px-4 pt-5 pb-12 sm:px-6 lg:px-8 lg:pt-7">
+        <ScoreWindowCard />
+
         {loadState === 'loading' || !viewModel || !loaded ? (
           <div
             data-testid="planner-loading"
-            className="rounded-[16px] border border-sand-200 bg-white px-5 py-10 text-center shadow-[var(--shadow-card)]"
+            className="mt-5 rounded-[16px] border border-sand-200 bg-white px-5 py-10 text-center shadow-[var(--shadow-card)]"
           >
             <div className="text-[11px] font-semibold tracking-[0.09em] text-teal-700 uppercase">
               TideWise
