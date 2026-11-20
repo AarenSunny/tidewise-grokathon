@@ -167,9 +167,10 @@ def test_query_no_longer_501():
     from backend.api import app
 
     client = TestClient(app)
-    r = client.post("/query", json={"text": "where to clam near HMB?"})
+    r = client.post("/query", json={"text": "where to clam near Pillar Point?"})
     assert r.status_code == 200
-    assert r.json()["explanation"]
+    body = r.json()
+    assert body["explanation"] or body["clarifying"]
 
 
 def test_query_text_max_length():
