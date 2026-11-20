@@ -14,8 +14,8 @@ export const CRABBING_RANGE_HOURS = 72;
 export const PLANNER_ACTIVITIES: ActivityOption[] = [
   { id: 'clamming', label: 'Clamming', enabled: true },
   { id: 'crabbing', label: 'Crabbing', enabled: true },
-  { id: 'swimming', label: 'Swimming', enabled: false, comingSoonLabel: 'Soon' },
-  { id: 'sailing', label: 'Sailing', enabled: false, comingSoonLabel: 'Soon' },
+  { id: 'swimming', label: 'Swimming', enabled: true },
+  { id: 'sailing', label: 'Sailing', enabled: true },
 ];
 
 export function recommendParamsForActivity(activity: Activity): {
@@ -35,8 +35,14 @@ export function recommendParamsForActivity(activity: Activity): {
       durationHours: CRABBING_RANGE_HOURS,
     };
   }
-  const range = pacificRangeIso(new Date(), 24);
-  return { activity, start: range.start, end: range.end, durationHours: 24 };
+  // The live backend scores ~72h of forecasts; 24h often returns no windows.
+  const range = pacificRangeIso(new Date(), CRABBING_RANGE_HOURS);
+  return {
+    activity,
+    start: range.start,
+    end: range.end,
+    durationHours: CRABBING_RANGE_HOURS,
+  };
 }
 
 export function hasLiveWindows(response: RecommendResponse | null | undefined): boolean {
