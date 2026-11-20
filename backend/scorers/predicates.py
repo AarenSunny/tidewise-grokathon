@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 
-from backend.features.bloom import bloom_status, resolve_region
+from backend.features.bloom import bloom_status
 from backend.features.timeutil import LA, to_la
 from backend.features.units import fahrenheit_to_celsius, meters_to_feet
 from backend.models.common import SourceStatus
@@ -279,34 +279,63 @@ def _trap_zone_applies(ctx: EvalContext) -> bool:
 
 
 def dungeness_water_decision(ctx: EvalContext) -> Decision:
-    region_id = resolve_region(ctx.grid, ctx.region)
+    """Ban is read from the configured spot, never from ``grid.bloom_region``.
+
+    ``Spot.dungeness_prohibited`` or a spot-map region in
+    ``dungeness_prohibited_regions`` fails the gate. A caller-supplied
+    bloom region cannot clear that. An unknown spot cannot confirm.
+    """
+
+    spot = _configured_spot(ctx)
     evidence = cite(
         [
             {"name": "spot_id", "value": ctx.grid.spot_id, "unit": ""},
-            {"name": "bloom_region", "value": region_id, "unit": ""},
+            {
+                "name": "dungeness_prohibited",
+                "value": None if spot is None else bool(spot.get("dungeness_prohibited")),
+                "unit": "",
+            },
         ]
     )
-    if region_id is None:
+    if spot is None:
         return unconfirmed(
-            "water body is unknown, so Dungeness legality cannot be confirmed",
+            "spot is not in the region config, so Dungeness legality cannot be confirmed",
             evidence,
             [("dungeness water unknown", "unknown")],
         )
-    prohibited = ctx.region.get("dungeness_prohibited_regions", [])
-    if region_id in prohibited:
+    region_id = _spot_region_id(ctx, str(spot.get("id")))
+    if spot.get("dungeness_prohibited") is True or _region_prohibits_dungeness(ctx, region_id):
         return failed(
             "Dungeness crab may not be taken in San Francisco Bay or San Pablo Bay "
             "(14 CCR §29.85(b)(1))",
             evidence,
         )
-    known = ctx.region.get("bloom_regions", {})
-    if region_id not in known:
+    if region_id is None:
         return unconfirmed(
-            f"region {region_id} has no Dungeness rule configured",
+            "spot region is unknown, so Dungeness legality cannot be confirmed",
             evidence,
             [("dungeness water unknown", "unknown")],
         )
-    return passed(f"spot region {region_id} is not a prohibited Dungeness water", evidence)
+    return passed(f"spot {spot.get('id')} is not a prohibited Dungeness water", evidence)
+
+
+def _configured_spot(ctx: EvalContext) -> dict[str, Any] | None:
+    for spot in ctx.region.get("spots", []):
+        if isinstance(spot, dict) and spot.get("id") == ctx.grid.spot_id:
+            return spot
+    return None
+
+
+def _spot_region_id(ctx: EvalContext, spot_id: str) -> str | None:
+    mapped = ctx.region.get("spot_regions", {}).get(spot_id)
+    return mapped if isinstance(mapped, str) else None
+
+
+def _region_prohibits_dungeness(ctx: EvalContext, region_id: str | None) -> bool:
+    if region_id is None:
+        return False
+    prohibited = ctx.region.get("dungeness_prohibited_regions", [])
+    return region_id in prohibited
 
 
 def bloom_decision(ctx: EvalContext) -> Decision:
@@ -465,6 +494,91 @@ def _is_strong_ebb(hour: HourlyFeatures, ebb_line: float) -> bool | None:
     if phase in {"rising", "flood", "slack", "high", "low"}:
         return False
     return None
+
+
+def shellfish_closure_state(ctx: EvalContext) -> str | None:
+    """Tri-state for CDPH. Only an explicit false boolean is clear.
+
+    ``active`` when a configured closed token is present. ``inactive`` when a
+    configured clear token is present and no closed token is. Empty alerts
+    and any other string (county names, free text) return None so the gate
+    cannot_confirm.
+    """
+
+    spec = ctx.config.get("shellfish_boolean", {})
+    clear = {str(item).strip().lower() for item in spec.get("clear", [])}
+    closed = {str(item).strip().lower() for item in spec.get("closed", [])}
+    if not clear or not closed:
+        return None
+    tokens = [
+        alert.strip().lower()
+        for hour in ctx.hours
+        for alert in hour.active_alerts
+        if isinstance(alert, str) and alert.strip()
+    ]
+    if not tokens:
+        return None
+    if any(token in closed for token in tokens):
+        return "active"
+    if any(token in clear for token in tokens):
+        return "inactive"
+    return None
+
+
+def surf_decision(ctx: EvalContext) -> Decision:
+    limit = ctx.config.get("surf", {}).get("max_wave_height_m")
+    evidence = cite(hour_value_records(ctx.hours, "wave_height_m", "m"))
+    if not isinstance(limit, (int, float)) or isinstance(limit, bool):
+        return unconfirmed(
+            "surf height limit is missing from config",
+            evidence,
+            [("surf limit missing", "missing")],
+        )
+    if not ctx.hours:
+        return unconfirmed("no hourly features in the window", evidence, [("hours missing", "missing")])
+    for hour in ctx.hours:
+        problem = numeric_sentinel("wave_m", hour.wave_height_m)
+        if problem is not None:
+            return unconfirmed(
+                f"wave_height_m is {problem}",
+                evidence,
+                [(f"wave_height_m {problem}", problem)],
+            )
+        assert hour.wave_height_m is not None
+        if hour.wave_height_m > float(limit):
+            return failed(
+                f"wave height is above {limit} m",
+                evidence,
+            )
+    return passed(f"wave height is at or below {limit} m", evidence)
+
+
+def gust_decision(ctx: EvalContext) -> Decision:
+    limit = ctx.config.get("gusts", {}).get("max_gust_kt")
+    evidence = cite(hour_value_records(ctx.hours, "wind_gust_kt", "kt"))
+    if not isinstance(limit, (int, float)) or isinstance(limit, bool):
+        return unconfirmed(
+            "gust limit is missing from config",
+            evidence,
+            [("gust limit missing", "missing")],
+        )
+    if not ctx.hours:
+        return unconfirmed("no hourly features in the window", evidence, [("hours missing", "missing")])
+    for hour in ctx.hours:
+        problem = numeric_sentinel("wind", hour.wind_gust_kt)
+        if problem is not None:
+            return unconfirmed(
+                f"wind_gust_kt is {problem}",
+                evidence,
+                [(f"wind_gust_kt {problem}", problem)],
+            )
+        assert hour.wind_gust_kt is not None
+        if hour.wind_gust_kt > float(limit):
+            return failed(
+                f"gusts are above {limit} kt",
+                evidence,
+            )
+    return passed(f"gusts are at or below {limit} kt", evidence)
 
 
 def alert_state(ctx: EvalContext, pattern_key: str) -> str | None:

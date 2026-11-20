@@ -14,6 +14,11 @@ cold_shock:
   # Compared internally in °C. Fail at or below 60°F.
   fail_at_or_below_f: 60
   caution_below_f: 70
+surf:
+  # No national safe-swim height (DATA_SOURCES.md B5). Block significant
+  # wave height above 1.5 m so a multi-meter surf cannot pass when the
+  # beach-hazards string never arrives. Missing buoy waves cannot_confirm.
+  max_wave_height_m: 1.5
 bloom:
   fail_above:
     outer_coast: bloom_above_mg_m3
@@ -74,6 +79,13 @@ gates:
     unit: "°C"
     factor: water_temp
     blocked_reason: "cold-shock water temperature"
+  - name: surf_height
+    rule: "surf_clear == true"
+    missing: cannot_confirm
+    sources: [ndbc_buoy]
+    unit: m
+    factor: wave_height
+    blocked_reason: "surf above the configured maximum"
 weights:
   water_temp:
     weight: 0.55
